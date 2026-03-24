@@ -1,0 +1,45 @@
+# ─── Database (contains API keys & user config) ───────────────────────────────
+backend/data/*.db
+backend/data/*.db-shm
+backend/data/*.db-wal
+
+# ─── Python ───────────────────────────────────────────────────────────────────
+backend/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# ─── Node / Next.js ───────────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+.cache/
+.next/
+
+# ─── Environment & Secrets ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*credentials*.json
+*service_account*.json
+*serviceaccount*.json
+
+# ─── Output images (generated content, not source code) ───────────────────────
+backend/data/outputs/
+
+# ─── macOS system files ───────────────────────────────────────────────────────
+.DS_Store
+**/.DS_Store
+
+# ─── Claude Code local files ──────────────────────────────────────────────────
+.claude/launch.json
+.claude/worktrees/
+
+# ─── npm lock (local only) ────────────────────────────────────────────────────
+frontend/package-lock.json
