@@ -6,12 +6,64 @@ PSD 图层结构（从上到下）：
   - scenebg  : RGB，原图背景（锁定）
 
 依赖：psd-tools
+兼容：psd-tools 1.11.x 和 1.14.x（两个版本 frompil 处理 alpha 行为不同）
 """
 import logging
 from io import BytesIO
 from PIL import Image
 
 logger = logging.getLogger(__name__)
+
+
+def _frompil_with_alpha(seg_img, psd, layer_name: str):
+    """
+    创建带透明通道的 PixelLayer，兼容 psd-tools 1.11.x 和 1.14.x。
+
+    psd-tools 1.11.x bug：在 RGB mode PSD 中，frompil 会丢弃 RGBA 图片的 alpha channel。
+    psd-tools 1.14.x fix：frompil 已正确写入 transparency channel（channel ID = -1）。
+
+    策略：
+      1. 先调用 frompil 创建图层
+      2. 检查 alpha channel 是否已存在（1.14.x 会自动写入，直接返回）
+      3. 若 alpha 缺失（1.11.x bug），手动向图层记录里注入 transparency channel
+      4. 任何内部 API 异常都 raise，由调用方 fallback 到普通 frompil
+    """
+    from psd_tools.api.layers import PixelLayer
+    from psd_tools.constants import ChannelID
+
+    layer = PixelLayer.frompil(seg_img, psd, name=layer_name)
+
+    # 1.14.x 已修复，alpha 已写入，直接返回
+    if seg_img.mode != "RGBA":
+        return layer
+
+    has_alpha = any(
+        getattr(ci.channel_id, "value", ci.channel_id) == -1
+        for ci in layer._record.channel_info
+    )
+    if has_alpha:
+        return layer
+
+    # --- 1.11.x 补丁：手动注入 transparency channel ---
+    from psd_tools.psd.layer_and_mask import ChannelInfo, ChannelData
+    from psd_tools.constants import Compression
+
+    alpha = seg_img.split()[3]
+    alpha_bytes = alpha.tobytes()
+
+    # channel_info：在最前面插入 transparency（-1），psd-tools 按顺序读取
+    ch_info = ChannelInfo(
+        channel_id=ChannelID.TRANSPARENCY_MASK,
+        length=len(alpha_bytes) + 2,  # +2 for 2-byte compression header
+    )
+    layer._record.channel_info.insert(0, ch_info)
+
+    # channel_data_list：对应位置插入 raw alpha 数据
+    ch_data = ChannelData(compression=Compression.RAW, data=alpha_bytes)
+    layer._record.channel_data_list.items.insert(0, ch_data)
+
+    logger.debug("[psd_builder] patched alpha channel for psd-tools < 1.14")
+    return layer
 
 
 def build_psd(original_image_path: str, segments: list[dict]) -> bytes:
@@ -75,9 +127,16 @@ def build_psd(original_image_path: str, segments: list[dict]) -> bytes:
             canvas.paste(seg_img, (x1, y1))
             seg_img = canvas
 
-        # Bug 1 fix: RGBA frompil 在 RGB mode PSD 中 alpha 写为 transparency
-        #            channel（-1），不产生 layer mask（-2）
-        product_layer = PixelLayer.frompil(seg_img, psd, name=layer_name)
+        # 兼容 1.11.x / 1.14.x：
+        #   try  → _frompil_with_alpha 手动补 alpha（1.11.x 需要；1.14.x 也能走，检测后直接返回）
+        #   except → 降级到普通 frompil（1.14.x 本身无 bug，保底也 OK）
+        try:
+            product_layer = _frompil_with_alpha(seg_img, psd, layer_name)
+        except Exception as e:
+            logger.warning(
+                "[psd_builder] _frompil_with_alpha failed (%s), fallback to frompil", e
+            )
+            product_layer = PixelLayer.frompil(seg_img, psd, name=layer_name)
         psd.append(product_layer)
         logger.info("[psd_builder] added layer '%s'", layer_name)
 
