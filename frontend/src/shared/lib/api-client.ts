@@ -68,6 +68,13 @@ export const segGenerateApi = {
     apiClient.get("/seg-generate/psd-previews", { params: { path: psdPath }, timeout: 30000 }),
 };
 
+// ── Logs ──────────────────────────────────────────────────────────────────────
+
+export const logsApi = {
+  get: (lines?: number) =>
+    apiClient.get("/logs", { params: lines ? { lines } : undefined, timeout: 10000 }),
+};
+
 // ── Runs ──────────────────────────────────────────────────────────────────────
 
 export const runsApi = {
