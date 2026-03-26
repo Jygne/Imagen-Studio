@@ -1,3 +1,4 @@
+from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from app.infrastructure.db.repositories.api_key_repo import ApiKeyRepository

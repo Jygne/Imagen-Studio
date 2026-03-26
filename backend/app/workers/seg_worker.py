@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Seg Image Worker — 调用 Shopee pisegv2 API 对本地图片做主体分割
 输入: 本地图片路径
@@ -19,10 +20,9 @@ PISEG_URL = (
 )
 PISEG_HEADERS = {
     "Content-Type": "application/json",
-    "x-sp-sdu": "ai_engine_platform.mmuplt.controller.global.liveish.master.default",
     "x-sp-servicekey": "f0dd2d544097d2a938595c1d78949bd3",
+    "x-sp-sdu": "ai_engine_platform.mmuplt.controller.global.liveish.master.default",
     "x-sp-timeout": "60000",
-    "x-sp-processid": "process_1",
 }
 
 
@@ -51,9 +51,10 @@ def _call_piseg(base64_image: str, max_retries: int = 3) -> dict | None:
                 timeout=60,
             )
             if resp.status_code != 200:
-                logger.warning("[piseg] HTTP %s, attempt %d/%d", resp.status_code, attempt + 1, max_retries)
+                logger.warning("[piseg] HTTP %s, body=%r, attempt %d/%d", resp.status_code, resp.text[:200], attempt + 1, max_retries)
                 time.sleep(1)
                 continue
+            logger.info("[piseg] status=%s body_len=%d body_preview=%r", resp.status_code, len(resp.content), resp.text[:200])
             resp_json = resp.json()
             if "task_result" not in resp_json:
                 logger.warning("[piseg] no task_result, attempt %d/%d", attempt + 1, max_retries)

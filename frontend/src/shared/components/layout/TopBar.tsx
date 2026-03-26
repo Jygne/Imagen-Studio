@@ -5,7 +5,12 @@ import { Terminal, Plus } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useLocale } from "@/shared/lib/i18n";
 
-export function TopBar() {
+interface TopBarProps {
+  onToggleConsole?: () => void;
+  consoleOpen?: boolean;
+}
+
+export function TopBar({ onToggleConsole, consoleOpen }: TopBarProps) {
   const pathname = usePathname();
   const { locale, setLocale, t } = useLocale();
 
@@ -48,7 +53,15 @@ export function TopBar() {
           {locale === "en" ? "中文" : "EN"}
         </button>
 
-        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-text-secondary border border-border hover:border-border hover:text-text-primary hover:bg-bg-hover transition-colors">
+        <button
+          onClick={onToggleConsole}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors",
+            consoleOpen
+              ? "border-blue-500 text-blue-400 bg-blue-500/10"
+              : "border-border text-text-secondary hover:border-border hover:text-text-primary hover:bg-bg-hover"
+          )}
+        >
           <Terminal size={14} />
           {t("console")}
         </button>

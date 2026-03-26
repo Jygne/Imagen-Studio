@@ -1,3 +1,4 @@
+from __future__ import annotations
 from app.domain.enums import WorkflowType
 
 REQUIRED_HEADERS = {
