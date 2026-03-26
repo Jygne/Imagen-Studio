@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Routes for Local Generate workflow.
 

@@ -7,6 +7,7 @@ from app.infrastructure.db.database import init_db
 from app.api.routes import api_keys, settings, runs, workflows, files
 from app.api.routes import local_generate
 from app.api.routes import seg_generate
+from app.api.routes import logs
 
 
 @asynccontextmanager
@@ -38,6 +39,7 @@ app.include_router(workflows.router, prefix=API_PREFIX)
 app.include_router(files.router, prefix=API_PREFIX)
 app.include_router(local_generate.router, prefix=API_PREFIX)
 app.include_router(seg_generate.router, prefix=API_PREFIX)
+app.include_router(logs.router, prefix=API_PREFIX)
 
 
 @app.get("/health")
