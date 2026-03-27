@@ -6,7 +6,10 @@ AI 驱动的批量商品图生成工作台。
 
 - **Local Generate** — 从本地文件夹批量处理生成干净商品图
 - **Sheet Generate** — 读取 Google Sheet 行数据驱动批量生成
-- **Runs** — 执行历史记录，支持逐条对比查看结果
+- **Seg Generate** — 批量分割商品主体并导出 PSD 文件（product + scenebg 双图层）
+- **PSD Rename** — 批量规范 PSD 图层命名，支持 text / frame / stickerbg / scenebg 分类
+- **Console** — 右上角实时日志面板，查看任务执行详情
+- **Runs** — 执行历史记录，支持逐条查看处理结果
 - **中/英双语界面** — 右上角一键切换
 
 ## 技术栈
@@ -32,8 +35,8 @@ AI 驱动的批量商品图生成工作台。
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/Jygne/buyboxv2-main.git
-cd buyboxv2-main
+git clone https://github.com/Jygne/buyboxv3.git
+cd buyboxv3
 ```
 
 ### 2. 后端安装
@@ -97,14 +100,19 @@ npm run dev
 ## 目录结构
 
 ```
-buyboxv2-main/
+buyboxv3/
 ├── BuyBox.app/          # macOS 双击启动包
 ├── backend/
-│   ├── app/             # FastAPI 应用
+│   ├── app/
+│   │   ├── api/routes/  # 各工作流 API 路由
+│   │   └── workers/     # 核心处理逻辑
 │   ├── .venv/           # 虚拟环境（不进 Git）
 │   └── requirements.txt
 └── frontend/
     ├── src/
+    │   ├── app/         # Next.js 页面路由
+    │   ├── features/    # 各工作流页面组件
+    │   └── shared/      # 公共组件、类型、工具
     └── package.json
 ```
 
