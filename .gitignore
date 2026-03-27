@@ -1,3 +1,6 @@
+# ─── Local dev scripts (contain absolute paths) ───────────────────────────────
+start-dev.sh
+
 # ─── Database (contains API keys & user config) ───────────────────────────────
 backend/data/*.db
 backend/data/*.db-shm

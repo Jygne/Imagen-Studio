@@ -1,6 +1,6 @@
 """
 Live validation script — reads API keys directly from DB, tests real API calls.
-Usage (from buyboxv2/backend/):
+Usage (from imgen-studio/backend/):
   source .venv/bin/activate
   python test_live.py
 
@@ -146,7 +146,7 @@ def test_openrouter(api_key: str, model: str):
 
 if __name__ == "__main__":
     print("=" * 55)
-    print("  BuyBox v2 — Live Provider Validation")
+    print("  Imgen Studio — Live Provider Validation")
     print("=" * 55)
 
     openai_key, openrouter_key = get_keys()

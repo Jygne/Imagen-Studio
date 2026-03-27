@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="BuyBox v2 API",
+    title="Imgen Studio API",
     version="0.1.0",
     lifespan=lifespan,
 )

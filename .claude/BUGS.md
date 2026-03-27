@@ -1,4 +1,4 @@
-# BuyBox Claude 操作 Bug 记录
+# Imgen Studio Claude 操作 Bug 记录
 
 每次开新分支 / 执行 merge 前，必须先阅读此文件。
 

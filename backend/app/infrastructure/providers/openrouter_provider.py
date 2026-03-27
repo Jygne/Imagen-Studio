@@ -25,8 +25,8 @@ class OpenRouterProvider(AbstractProvider):
                 api_key=self.api_key,
                 base_url=OPENROUTER_BASE_URL,
                 default_headers={
-                    "HTTP-Referer": "https://buyboxv2.local",
-                    "X-Title": "BuyBox v2",
+                    "HTTP-Referer": "https://imgen-studio.local",
+                    "X-Title": "Imgen Studio",
                 },
             )
         return self._client

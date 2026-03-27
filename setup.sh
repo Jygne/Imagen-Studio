@@ -1,6 +1,6 @@
 #!/bin/bash
 PROJECT="$(cd "$(dirname "$0")" && pwd)"
-echo "🔧 Setting up BuyBox..."
+echo "🔧 Setting up Imgen Studio..."
 
 # Backend
 echo "▶ Installing Python dependencies..."
@@ -17,4 +17,4 @@ cd "$PROJECT/frontend"
 echo "✓ Frontend ready"
 
 echo ""
-echo "✅ Setup complete! Double-click BuyBox.app to launch."
+echo "✅ Setup complete! Double-click Imgen Studio.app to launch."

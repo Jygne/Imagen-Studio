@@ -35,8 +35,8 @@ AI 驱动的批量商品图生成工作台。
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/Jygne/buyboxv3.git
-cd buyboxv3
+git clone https://github.com/Jygne/imgen-studio.git
+cd imgen-studio
 ```
 
 ### 2. 后端安装
@@ -73,12 +73,12 @@ OPENROUTER_API_KEY=sk-or-...
 
 ### 5. 启动服务
 
-**方式 A — 双击 BuyBox.app（仅 macOS，推荐）**
+**方式 A — 双击 Imgen Studio.app（仅 macOS，推荐）**
 
-将项目根目录的 `BuyBox.app` 拖到桌面，双击即可自动启动后端、前端并打开浏览器。
+将项目根目录的 `Imgen Studio.app` 拖到桌面，双击即可自动启动后端、前端并打开浏览器。
 
 > 首次运行若提示「无法打开」，前往 **系统设置 → 隐私与安全性 → 仍然允许**。
-> 或在终端执行：`xattr -cr ~/Desktop/BuyBox.app`
+> 或在终端执行：`xattr -cr ~/Desktop/Imgen Studio.app`
 
 **方式 B — 命令行手动启动**
 
@@ -100,8 +100,8 @@ npm run dev
 ## 目录结构
 
 ```
-buyboxv3/
-├── BuyBox.app/          # macOS 双击启动包
+imgen-studio/
+├── Imgen Studio.app/          # macOS 双击启动包
 ├── backend/
 │   ├── app/
 │   │   ├── api/routes/  # 各工作流 API 路由
@@ -120,10 +120,10 @@ buyboxv3/
 
 ## 常见问题
 
-**Q: 双击 BuyBox.app 提示"无法打开"？**
+**Q: 双击 Imgen Studio.app 提示"无法打开"？**
 在终端运行：
 ```bash
-xattr -cr ~/Desktop/BuyBox.app
+xattr -cr ~/Desktop/Imgen Studio.app
 ```
 
 **Q: 后端报 `No module named 'xxx'`？**
