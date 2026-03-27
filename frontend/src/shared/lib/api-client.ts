@@ -59,6 +59,15 @@ export const localGenerateApi = {
     apiClient.post("/local-generate/preview", { input_dir }, { timeout: 30000 }),
 };
 
+// ── PSD Rename ────────────────────────────────────────────────────────────────
+
+export const psdRenameApi = {
+  preview: (input_dir: string) =>
+    apiClient.post("/psd-rename/preview", { input_dir }, { timeout: 60000 }),
+  execute: (data: Record<string, unknown>) =>
+    apiClient.post("/workflows/psd-rename/execute", data),
+};
+
 // ── Seg Generate ──────────────────────────────────────────────────────────────
 
 export const segGenerateApi = {

@@ -2,11 +2,10 @@
 PSD Builder — 将原图 + 分割抠图合成为双图层 PSD 文件
 
 PSD 图层结构（从上到下）：
-  - product  : RGBA，透明底，分割抠图（可见）
-  - scenebg  : RGB，原图背景（锁定）
+  - product  : RGB + layer mask，方便 PS 二次编辑蒙版
+  - scenebg  : RGB，原图背景
 
 依赖：psd-tools
-兼容：psd-tools 1.11.x 和 1.14.x（两个版本 frompil 处理 alpha 行为不同）
 """
 import logging
 from io import BytesIO
@@ -15,55 +14,60 @@ from PIL import Image
 logger = logging.getLogger(__name__)
 
 
-def _frompil_with_alpha(seg_img, psd, layer_name: str):
+def _build_layer_with_mask(seg_img: Image.Image, layer_name: str, psd):
     """
-    创建带透明通道的 PixelLayer，兼容 psd-tools 1.11.x 和 1.14.x。
+    构建带 Photoshop layer mask 的 PixelLayer。
 
-    psd-tools 1.11.x bug：在 RGB mode PSD 中，frompil 会丢弃 RGBA 图片的 alpha channel。
-    psd-tools 1.14.x fix：frompil 已正确写入 transparency channel（channel ID = -1）。
-
-    策略：
-      1. 先调用 frompil 创建图层
-      2. 检查 alpha channel 是否已存在（1.14.x 会自动写入，直接返回）
-      3. 若 alpha 缺失（1.11.x bug），手动向图层记录里注入 transparency channel
-      4. 任何内部 API 异常都 raise，由调用方 fallback 到普通 frompil
+    - 像素数据：seg_img 的 RGB 通道（全不透明）
+    - Layer mask（channel -2）：seg_img 的 alpha 通道（白=显示，黑=隐藏）
     """
     from psd_tools.api.layers import PixelLayer
+    from psd_tools.compression import Compression
+    from psd_tools.psd.layer_and_mask import MaskData, MaskFlags
     from psd_tools.constants import ChannelID
+    from psd_tools.psd.layer_and_mask import ChannelData, ChannelDataList, ChannelInfo
 
-    layer = PixelLayer.frompil(seg_img, psd, name=layer_name)
+    width, height = seg_img.size
+    alpha_img = seg_img.split()[3]
+    rgb_img = seg_img.convert("RGB")
 
-    # 1.14.x 已修复，alpha 已写入，直接返回
-    if seg_img.mode != "RGBA":
-        return layer
+    channel_data_list = ChannelDataList()
+    channel_info_list = []
+    depth = 8
 
-    has_alpha = any(
-        getattr(ci.channel_id, "value", ci.channel_id) == -1
-        for ci in layer._record.channel_info
+    def _make_channel(img_channel: Image.Image) -> ChannelData:
+        cd = ChannelData(Compression.RLE)
+        cd.set_data(img_channel.tobytes(), width, height, depth)
+        return cd
+
+    # channel -1: transparency（全不透明，显隐由 mask 控制）
+    opaque = Image.new("L", (width, height), 255)
+    ch_neg1 = _make_channel(opaque)
+    channel_data_list.append(ch_neg1)
+    channel_info_list.append(ChannelInfo(id=ChannelID.TRANSPARENCY_MASK, length=len(ch_neg1.data) + 2))
+
+    # channel -2: user layer mask（alpha 通道）
+    ch_neg2 = _make_channel(alpha_img)
+    channel_data_list.append(ch_neg2)
+    channel_info_list.append(ChannelInfo(id=ChannelID.USER_LAYER_MASK, length=len(ch_neg2.data) + 2))
+
+    # channels 0/1/2: R G B
+    for idx, band in enumerate(rgb_img.split()):
+        cd = _make_channel(band)
+        channel_data_list.append(cd)
+        channel_info_list.append(ChannelInfo(id=ChannelID(idx), length=len(cd.data) + 2))
+
+    layer_record, _ = PixelLayer._build_layer_record_and_channels(
+        rgb_img, layer_name, 0, 0, Compression.RLE
     )
-    if has_alpha:
-        return layer
-
-    # --- 1.11.x 补丁：手动注入 transparency channel ---
-    from psd_tools.psd.layer_and_mask import ChannelInfo, ChannelData
-    from psd_tools.constants import Compression
-
-    alpha = seg_img.split()[3]
-    alpha_bytes = alpha.tobytes()
-
-    # channel_info：在最前面插入 transparency（-1），psd-tools 按顺序读取
-    ch_info = ChannelInfo(
-        channel_id=ChannelID.TRANSPARENCY_MASK,
-        length=len(alpha_bytes) + 2,  # +2 for 2-byte compression header
+    layer_record.channel_info = channel_info_list
+    layer_record.mask_data = MaskData(
+        top=0, left=0, bottom=height, right=width,
+        background_color=0,
+        flags=MaskFlags(),
     )
-    layer._record.channel_info.insert(0, ch_info)
 
-    # channel_data_list：对应位置插入 raw alpha 数据
-    ch_data = ChannelData(compression=Compression.RAW, data=alpha_bytes)
-    layer._record.channel_data_list.items.insert(0, ch_data)
-
-    logger.debug("[psd_builder] patched alpha channel for psd-tools < 1.14")
-    return layer
+    return PixelLayer(psd, layer_record, channel_data_list)
 
 
 def build_psd(original_image_path: str, segments: list[dict]) -> bytes:
@@ -78,17 +82,14 @@ def build_psd(original_image_path: str, segments: list[dict]) -> bytes:
     Returns:
         PSD 文件的 bytes
 
-    Raises:
-        ImportError: psd-tools 未安装
-        Exception: 其他生成错误
-
     图层结构（从上到下）：
-        product / product1 / product2 ...  — RGBA 透明底分割图，无 layer mask
-        scenebg                            — RGB 原图背景
+        product / product1 ...  — RGB + layer mask（channel -2），方便二次编辑
+        scenebg                 — RGB 原图背景
     """
     try:
         from psd_tools import PSDImage
         from psd_tools.api.layers import PixelLayer
+        from psd_tools.compression import Compression
     except ImportError:
         raise ImportError(
             "psd-tools is required for PSD export. "
@@ -99,18 +100,13 @@ def build_psd(original_image_path: str, segments: list[dict]) -> bytes:
     orig_img = Image.open(original_image_path).convert("RGB")
     width, height = orig_img.size
 
-    # 2. 创建 RGB mode PSD
-    #    使用 RGB（而非 RGBA）document mode，确保图层 alpha 被 psd-tools
-    #    写为 transparency channel（channel ID = -1），而不是 layer mask（-2）。
-    #    这样 PS 打开后 product 图层只有像素透明通道，无附带 mask 缩略图。
+    # 2. 创建 RGB mode PSD（标准 Photoshop 格式）
     psd = PSDImage.new("RGB", (width, height))
 
     # 3. 底层：scenebg（原图 RGB）
-    bg_layer = PixelLayer.frompil(orig_img, psd, name="scenebg")
-    psd.append(bg_layer)
+    PixelLayer.frompil(orig_img, psd, name="scenebg")
 
-    # 4. 分割图层（从下往上追加，最后一个在最顶层）
-    #    命名规则：1 个主体 → "product"；多个主体 → "product1", "product2", "product3" ...
+    # 4. product 图层（带 layer mask）
     multi = len(segments) > 1
     for i, seg in enumerate(segments):
         layer_name = f"product{i + 1}" if multi else "product"
@@ -119,7 +115,7 @@ def build_psd(original_image_path: str, segments: list[dict]) -> bytes:
         if seg_img.mode != "RGBA":
             seg_img = seg_img.convert("RGBA")
 
-        # Bug 3 fix: 裁剪段贴回全尺寸透明画布（按 bbox 定位，避免拉伸）
+        # 裁剪段贴回全尺寸透明画布（按 bbox 定位，避免拉伸）
         if seg_img.size != (width, height):
             canvas = Image.new("RGBA", (width, height), (0, 0, 0, 0))
             bbox = seg.get("bbox") or [0, 0, width, height]
@@ -127,18 +123,9 @@ def build_psd(original_image_path: str, segments: list[dict]) -> bytes:
             canvas.paste(seg_img, (x1, y1))
             seg_img = canvas
 
-        # 兼容 1.11.x / 1.14.x：
-        #   try  → _frompil_with_alpha 手动补 alpha（1.11.x 需要；1.14.x 也能走，检测后直接返回）
-        #   except → 降级到普通 frompil（1.14.x 本身无 bug，保底也 OK）
-        try:
-            product_layer = _frompil_with_alpha(seg_img, psd, layer_name)
-        except Exception as e:
-            logger.warning(
-                "[psd_builder] _frompil_with_alpha failed (%s), fallback to frompil", e
-            )
-            product_layer = PixelLayer.frompil(seg_img, psd, name=layer_name)
+        product_layer = _build_layer_with_mask(seg_img, layer_name, psd)
         psd.append(product_layer)
-        logger.info("[psd_builder] added layer '%s'", layer_name)
+        logger.info("[psd_builder] added layer '%s' with mask", layer_name)
 
     # 5. 序列化输出
     out = BytesIO()
@@ -156,9 +143,6 @@ def build_psd_fallback(original_image_path: str, seg_image_bytes: bytes) -> tupl
     """
     备用方案（当 psd-tools 不可用时）：
     返回 (原图PNG bytes, 抠图PNG bytes)，由调用方分别保存
-
-    Returns:
-        (original_png_bytes, seg_png_bytes)
     """
     orig_img = Image.open(original_image_path).convert("RGB")
     orig_out = BytesIO()

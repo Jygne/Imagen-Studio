@@ -27,6 +27,21 @@ const translations = {
     segTitle: "Seg Generate",
     segDesc: "Batch segment product images and export PSD",
 
+    // ── PSD Rename ───────────────────────────────────────────
+    psdRename: "PSD Rename",
+    psdRenameTitle: "PSD Rename",
+    psdRenameDesc: "Batch rename PSD layers via Photoshop",
+    psdNamingConfig: "Layer Naming Config",
+    psdPixelLayerLabel: "Pixel / Smart Object layers",
+    psdShapeLayerLabel: "Shape layers",
+    psdTextLayerNote: "Text layers → text / text1, text2… (auto)",
+    psdFrameLayerNote: "Shape ≥80% canvas → frame (auto)",
+    psdDeleteHidden: "Delete hidden layers",
+    psdFlattenGroups: "Flatten layer groups",
+    psdSkipNoText: "Skip PSD with no text layers",
+    psdFiles: "PSD files",
+    startPsdRename: "Start Renaming",
+
     // ── Shared ───────────────────────────────────────────────
     loading: "Loading...",
     saving: "Saving...",
@@ -212,6 +227,21 @@ const translations = {
     segGenerate: "分割抠图",
     segTitle: "分割抠图",
     segDesc: "批量分割商品图并导出 PSD",
+
+    // ── PSD Rename ───────────────────────────────────────────
+    psdRename: "PSD 重命名",
+    psdRenameTitle: "PSD 重命名",
+    psdRenameDesc: "通过 Photoshop 批量规范 PSD 图层命名",
+    psdNamingConfig: "图层命名配置",
+    psdPixelLayerLabel: "像素层 / 智能对象",
+    psdShapeLayerLabel: "形状层",
+    psdTextLayerNote: "文字层 → text / text1, text2…（自动）",
+    psdFrameLayerNote: "覆盖 ≥80% 画布的形状层 → frame（自动）",
+    psdDeleteHidden: "删除隐藏图层",
+    psdFlattenGroups: "解散图层组",
+    psdSkipNoText: "跳过无文字层的 PSD",
+    psdFiles: "个 PSD",
+    startPsdRename: "开始重命名",
 
     // ── Shared ───────────────────────────────────────────────
     loading: "加载中…",

@@ -44,6 +44,7 @@ from app.workers.clean_image_worker import process_clean_image
 from app.workers.selling_point_worker import process_selling_point
 from app.workers.seg_worker import process_seg_image
 from app.workers.psd_builder import build_psd, build_psd_fallback
+from app.workers.psd_rename_worker import build_rename_jsx, run_photoshop_jsx, parse_jsx_log
 from app.domain.enums import (
     RunStatus, ItemStatus, WorkflowType, Provider,
     OpenAIModel, OpenRouterModel
@@ -208,6 +209,132 @@ def _process_item(
         }
 
 
+def _execute_psd_rename_batch(run_id, run, items, settings, run_repo, cancel_event) -> None:
+    """
+    PSD_RENAME dedicated executor.
+    Generates one JSX, launches Photoshop once, polls log file to update RunItems.
+    """
+    import time as _time
+    from pathlib import Path as _Path
+
+    meta = run.run_metadata or {}
+    name_pixel     = meta.get("name_pixel", "scenebg")
+    name_shape     = meta.get("name_shape", "stickerbg")
+    delete_hidden  = meta.get("delete_hidden", True)
+    skip_no_text   = meta.get("skip_no_text", True)
+    flatten_groups = meta.get("flatten_groups", True)
+
+    today = datetime.now().strftime("%Y%m%d")
+    output_dir = settings.output_directory or os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "data", "outputs"
+    )
+    output_folder = os.path.join(output_dir, today, "psd_rename")
+    os.makedirs(output_folder, exist_ok=True)
+
+    jsx_log_path = os.path.join(output_folder, f"psd_rename_{run_id[:8]}.log")
+    psd_paths = [item.source_image_url for item in items if item.source_image_url]
+
+    # filename → item map for status updates
+    filename_to_item = {
+        _Path(item.source_image_url).name: item
+        for item in items if item.source_image_url
+    }
+
+    # Mark all items as running
+    for item in items:
+        run_repo.update_item(item.id, status=ItemStatus.RUNNING, started_at=datetime.utcnow())
+
+    try:
+        jsx_code = build_rename_jsx(
+            psd_paths=psd_paths,
+            output_folder=output_folder,
+            name_pixel=name_pixel,
+            name_shape=name_shape,
+            jsx_log_path=jsx_log_path,
+            delete_hidden=delete_hidden,
+            skip_no_text=skip_no_text,
+            flatten_groups=flatten_groups,
+        )
+        process = run_photoshop_jsx(jsx_code, jsx_log_path)
+    except Exception as e:
+        logger.exception("[psd_rename] launch failed: %s", e)
+        for item in items:
+            run_repo.update_item(item.id, status=ItemStatus.FAILED,
+                                 error_reason=str(e), finished_at=datetime.utcnow())
+        run_repo.update_run_counts(run_id, total=len(items),
+                                   success=0, failed=len(items), skipped=0)
+        run_repo.update_run_status(run_id, RunStatus.FAILED, finished_at=datetime.utcnow())
+        return
+
+    success = failed = skipped = 0
+    last_offset = 0
+    cancelled = False
+
+    while process.poll() is None:
+        if cancel_event.is_set():
+            process.kill()
+            cancelled = True
+            break
+
+        events, last_offset = parse_jsx_log(jsx_log_path, last_offset)
+        for event in events:
+            item = filename_to_item.get(event["filename"])
+            if not item:
+                continue
+            if event["type"] == "saved":
+                out_path = os.path.join(output_folder, event["filename"])
+                run_repo.update_item(item.id, status=ItemStatus.SUCCESS,
+                                     output_file_path=out_path, finished_at=datetime.utcnow())
+                success += 1
+            elif event["type"] == "skipped":
+                run_repo.update_item(item.id, status=ItemStatus.SKIPPED,
+                                     skipped_reason=event["message"], finished_at=datetime.utcnow())
+                skipped += 1
+            elif event["type"] == "error":
+                run_repo.update_item(item.id, status=ItemStatus.FAILED,
+                                     error_reason=event["message"], finished_at=datetime.utcnow())
+                failed += 1
+        run_repo.update_run_counts(run_id, total=len(items),
+                                   success=success, failed=failed, skipped=skipped)
+        _time.sleep(2)
+
+    # Flush remaining log lines after process exits
+    events, _ = parse_jsx_log(jsx_log_path, last_offset)
+    for event in events:
+        item = filename_to_item.get(event["filename"])
+        if not item:
+            continue
+        if event["type"] == "saved":
+            out_path = os.path.join(output_folder, event["filename"])
+            run_repo.update_item(item.id, status=ItemStatus.SUCCESS,
+                                 output_file_path=out_path, finished_at=datetime.utcnow())
+            success += 1
+        elif event["type"] == "skipped":
+            run_repo.update_item(item.id, status=ItemStatus.SKIPPED,
+                                 skipped_reason=event["message"], finished_at=datetime.utcnow())
+            skipped += 1
+        elif event["type"] == "error":
+            run_repo.update_item(item.id, status=ItemStatus.FAILED,
+                                 error_reason=event["message"], finished_at=datetime.utcnow())
+            failed += 1
+
+    # Items still RUNNING after PS exits = unaccounted (treat as failed)
+    for item in items:
+        if item.status == ItemStatus.RUNNING:
+            run_repo.update_item(item.id, status=ItemStatus.FAILED,
+                                 error_reason="Photoshop exited without reporting result",
+                                 finished_at=datetime.utcnow())
+            failed += 1
+
+    run_repo.update_run_counts(run_id, total=len(items),
+                               success=success, failed=failed, skipped=skipped)
+    final_status = RunStatus.CANCELLED if cancelled else RunStatus.DONE
+    run_repo.update_run_status(run_id, final_status, finished_at=datetime.utcnow())
+    logger.info("[psd_rename] run %s finished: success=%d failed=%d skipped=%d",
+                run_id, success, failed, skipped)
+
+
 def execute_batch(run_id: str, db_session_factory) -> None:
     """
     Main batch execution entry point. Runs in a background thread.
@@ -249,6 +376,16 @@ def execute_batch(run_id: str, db_session_factory) -> None:
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
             "data", "outputs"
         )
+
+        # PSD_RENAME: dedicated execution path (Photoshop ExtendScript)
+        if workflow_type == WorkflowType.PSD_RENAME:
+            run_repo.update_run_status(run_id, RunStatus.RUNNING, started_at=datetime.utcnow())
+            items = run_repo.get_items_by_run(run_id)
+            if not items:
+                run_repo.update_run_status(run_id, RunStatus.DONE, finished_at=datetime.utcnow())
+                return
+            _execute_psd_rename_batch(run_id, run, items, settings, run_repo, cancel_event)
+            return
 
         # Build provider (SEG_IMAGE does not use an AI provider)
         provider = None
