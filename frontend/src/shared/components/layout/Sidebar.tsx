@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Upload, Table2, History, Key, Sheet, Settings, Box, Scissors
+  Upload, Table2, History, Key, Sheet, Settings, Box, Scissors, Layers
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useLocale } from "@/shared/lib/i18n";
@@ -36,6 +36,7 @@ export function Sidebar() {
     { href: "/local-generate", label: t("localGenerate"), icon: Upload },
     { href: "/sheet-generate", label: t("sheetGenerate"), icon: Table2 },
     { href: "/seg-generate",   label: t("segGenerate"),   icon: Scissors },
+    { href: "/psd-rename",     label: t("psdRename"),     icon: Layers },
     { href: "/runs",           label: t("runs"),          icon: History },
   ];
 

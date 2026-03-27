@@ -45,3 +45,20 @@ class SegBatchExecuteResponse(BaseModel):
     run_id: str
     message: str
     queued_count: int
+
+
+class PsdRenameBatchExecuteRequest(BaseModel):
+    """PSD Rename workflow: batch rename PSD layers via Photoshop ExtendScript."""
+    input_dir: str
+    included_filenames: Optional[List[str]] = None
+    name_pixel: str = "scenebg"    # pixel / smart object layers
+    name_shape: str = "stickerbg"  # shape / fill layers (non-frame)
+    delete_hidden: bool = True
+    skip_no_text: bool = True
+    flatten_groups: bool = True
+
+
+class PsdRenameBatchExecuteResponse(BaseModel):
+    run_id: str
+    message: str
+    queued_count: int

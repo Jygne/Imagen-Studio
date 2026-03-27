@@ -13,7 +13,30 @@ import type { RunDetailOut, RunItemOut, RunListItemOut, ItemStatus } from "@/sha
 
 // ── Thumbnail ────────────────────────────────────────────────────────────────
 
-function Thumbnail({ url, size = 40 }: { url: string | null; size?: number }) {
+function Thumbnail({ url, size = 40, isPsd = false }: { url: string | null; size?: number; isPsd?: boolean }) {
+  if (isPsd) {
+    return (
+      <div
+        className="rounded bg-bg-input flex items-center justify-center"
+        style={{ width: size, height: size, minWidth: size }}
+      >
+        <svg width="30" height="30" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* File body — diagonal fold at top-right */}
+          <path d="M5 2 L17 2 L23 8 L23 26 Q23 27 22 27 L6 27 Q5 27 5 26 Z"
+            fill="#0d0d1f" stroke="#5b5bd6" strokeWidth="1.4" strokeLinejoin="round"/>
+          {/* Fold flap fill */}
+          <path d="M17 2 L23 8 L17 8 Z" fill="#5b5bd6" opacity="0.4"/>
+          {/* Fold flap border */}
+          <line x1="17" y1="2" x2="17" y2="8" stroke="#5b5bd6" strokeWidth="1.2"/>
+          <line x1="17" y1="8" x2="23" y2="8" stroke="#5b5bd6" strokeWidth="1.2"/>
+          {/* PSD banner */}
+          <rect x="2" y="17.5" width="24" height="9" rx="2" fill="#5b5bd6"/>
+          <text x="14" y="24.8" textAnchor="middle" fontSize="7.2" fontWeight="800"
+            fontFamily="Arial, sans-serif" fill="white" letterSpacing="0.6">PSD</text>
+        </svg>
+      </div>
+    );
+  }
   if (url) {
     return (
       <img
@@ -52,16 +75,19 @@ function ItemRow({
       ? Math.round(((item.run_success + item.run_failed + item.run_skipped) / item.run_total) * 100)
       : 0;
 
+  const isPsdWorkflow = item.workflow_type === "psd_rename";
+
   return (
     <tr
-      onClick={onOpenModal}
+      onClick={isPsdWorkflow ? undefined : onOpenModal}
       className={cn(
-        "border-b border-border/50 cursor-pointer transition-colors group",
+        "border-b border-border/50 transition-colors group",
+        isPsdWorkflow ? "cursor-default" : "cursor-pointer",
         selected ? "bg-accent/10" : "hover:bg-bg-hover/40"
       )}
     >
       <td className="py-2 px-4 w-14">
-        <Thumbnail url={item.thumbnail_url} size={40} />
+        <Thumbnail url={item.thumbnail_url} size={40} isPsd={isPsdWorkflow} />
       </td>
       <td className="py-3 px-4">
         <div className="flex flex-col gap-0.5">

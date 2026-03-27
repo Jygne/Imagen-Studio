@@ -16,7 +16,9 @@ from app.domain.schemas.workflow import (
     SheetBatchExecuteRequest, SheetBatchExecuteResponse,
     LocalBatchExecuteRequest, LocalBatchExecuteResponse,
     SegBatchExecuteRequest, SegBatchExecuteResponse,
+    PsdRenameBatchExecuteRequest, PsdRenameBatchExecuteResponse,
 )
+from app.api.routes.psd_rename import _scan_psds
 from app.domain.enums import RunSource, RunStatus, WorkflowType
 
 router = APIRouter(prefix="/workflows", tags=["Workflows"])
@@ -258,5 +260,68 @@ def execute_seg_batch(
     return SegBatchExecuteResponse(
         run_id=run.id,
         message=f"Seg batch started with {len(files)} images",
+        queued_count=len(files),
+    )
+
+
+@router.post("/psd-rename/execute", response_model=PsdRenameBatchExecuteResponse)
+def execute_psd_rename_batch(
+    payload: PsdRenameBatchExecuteRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """PSD Rename: scan PSD files → Photoshop ExtendScript → renamed PSD output."""
+    settings_repo = SettingsRepository(db)
+    settings = settings_repo.get_settings()
+
+    if not settings.output_directory:
+        raise HTTPException(status_code=400, detail="Output directory not configured")
+
+    files = _scan_psds(payload.input_dir)
+    scanned_count = len(files)
+
+    if payload.included_filenames is not None:
+        allowed = set(payload.included_filenames)
+        files = [f for f in files if f.name in allowed]
+        logger.info(
+            "[psd-rename/execute] included=%r | scanned=%d → filtered=%d",
+            payload.included_filenames, scanned_count, len(files),
+        )
+
+    if not files:
+        raise HTTPException(status_code=400, detail="No PSD files found in directory")
+
+    run_repo = RunRepository(db)
+    run = run_repo.create_run(
+        workflow_type=WorkflowType.PSD_RENAME,
+        source=RunSource.LOCAL,
+        provider=None,
+        model=None,
+        metadata={
+            "input_dir": payload.input_dir,
+            "name_pixel": payload.name_pixel,
+            "name_shape": payload.name_shape,
+            "delete_hidden": payload.delete_hidden,
+            "skip_no_text": payload.skip_no_text,
+            "flatten_groups": payload.flatten_groups,
+        },
+    )
+
+    item_rows = [
+        {
+            "row_index": i + 1,
+            "bb_model_id": f.stem,
+            "source_image_url": str(f),
+        }
+        for i, f in enumerate(files)
+    ]
+    run_repo.create_items_bulk(run.id, item_rows)
+    run_repo.update_run_counts(run.id, total=len(files), success=0, failed=0, skipped=0)
+
+    background_tasks.add_task(execute_batch, run.id, SessionLocal)
+
+    return PsdRenameBatchExecuteResponse(
+        run_id=run.id,
+        message=f"PSD rename batch started with {len(files)} files",
         queued_count=len(files),
     )
