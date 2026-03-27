@@ -5,6 +5,7 @@ class WorkflowType(str, Enum):
     CLEAN_IMAGE = "clean_image"
     SELLING_POINT = "selling_point"
     SEG_IMAGE = "seg_image"
+    PSD_RENAME = "psd_rename"
 
 
 class RunStatus(str, Enum):

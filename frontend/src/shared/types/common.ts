@@ -1,4 +1,4 @@
-export type WorkflowType = "clean_image" | "selling_point" | "seg_image";
+export type WorkflowType = "clean_image" | "selling_point" | "seg_image" | "psd_rename";
 export type RunStatus = "queued" | "running" | "done" | "failed" | "cancelled";
 export type ItemStatus = "pending" | "running" | "success" | "failed" | "skipped";
 export type RunSource = "sheet" | "local";
