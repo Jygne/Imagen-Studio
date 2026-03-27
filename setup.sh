@@ -1,6 +1,6 @@
 #!/bin/bash
 PROJECT="$(cd "$(dirname "$0")" && pwd)"
-echo "🔧 Setting up Imgen Studio..."
+echo "🔧 Setting up Imagen Studio..."
 
 # Backend
 echo "▶ Installing Python dependencies..."
@@ -17,4 +17,4 @@ cd "$PROJECT/frontend"
 echo "✓ Frontend ready"
 
 echo ""
-echo "✅ Setup complete! Double-click Imgen Studio.app to launch."
+echo "✅ Setup complete! Double-click Imagen Studio.app to launch."

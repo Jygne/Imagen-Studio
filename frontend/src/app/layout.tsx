@@ -3,7 +3,7 @@ import "./globals.css";
 import { AppShell } from "@/shared/components/layout/AppShell";
 
 export const metadata: Metadata = {
-  title: "Imgen Studio",
+  title: "Imagen Studio",
   description: "Batch image generation workbench",
 };
 

@@ -1,7 +1,7 @@
 """
 Minimal validation script for OpenAI and OpenRouter providers.
 Usage:
-  cd /path/to/imgen-studio/backend
+  cd /path/to/imagen-studio/backend
   source .venv/bin/activate
   python validate_providers.py --openai-key sk-... --openrouter-key sk-or-...
 

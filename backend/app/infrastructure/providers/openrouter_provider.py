@@ -25,8 +25,8 @@ class OpenRouterProvider(AbstractProvider):
                 api_key=self.api_key,
                 base_url=OPENROUTER_BASE_URL,
                 default_headers={
-                    "HTTP-Referer": "https://imgen-studio.local",
-                    "X-Title": "Imgen Studio",
+                    "HTTP-Referer": "https://imagen-studio.local",
+                    "X-Title": "Imagen Studio",
                 },
             )
         return self._client

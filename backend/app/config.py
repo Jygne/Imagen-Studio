@@ -4,7 +4,7 @@ from typing import Optional
 
 
 class Config(BaseSettings):
-    app_name: str = "Imgen Studio"
+    app_name: str = "Imagen Studio"
     debug: bool = True
     cors_origins: list[str] = ["http://localhost:3000"]
 

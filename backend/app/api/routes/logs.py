@@ -8,7 +8,7 @@ from fastapi import APIRouter, Query
 
 router = APIRouter(prefix="/logs", tags=["Logs"])
 
-LOG_FILE = "/tmp/imgen-backend.log"
+LOG_FILE = "/tmp/imagen-backend.log"
 
 
 @router.get("")

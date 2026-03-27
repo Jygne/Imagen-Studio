@@ -53,7 +53,7 @@ export function Sidebar() {
         <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
           <Box size={14} className="text-white" />
         </div>
-        <span className="text-text-primary font-semibold text-sm">Imgen Studio</span>
+        <span className="text-text-primary font-semibold text-sm">Imagen Studio</span>
       </div>
 
       {/* Nav */}

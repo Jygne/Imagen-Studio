@@ -1,6 +1,6 @@
 """
 Live validation script — reads API keys directly from DB, tests real API calls.
-Usage (from imgen-studio/backend/):
+Usage (from imagen-studio/backend/):
   source .venv/bin/activate
   python test_live.py
 
@@ -146,7 +146,7 @@ def test_openrouter(api_key: str, model: str):
 
 if __name__ == "__main__":
     print("=" * 55)
-    print("  Imgen Studio — Live Provider Validation")
+    print("  Imagen Studio — Live Provider Validation")
     print("=" * 55)
 
     openai_key, openrouter_key = get_keys()
