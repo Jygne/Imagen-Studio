@@ -3,8 +3,8 @@ import "./globals.css";
 import { AppShell } from "@/shared/components/layout/AppShell";
 
 export const metadata: Metadata = {
-  title: "BuyBox v2",
-  description: "Batch content production workbench",
+  title: "Imgen Studio",
+  description: "Batch image generation workbench",
 };
 
 export default function RootLayout({

@@ -4,7 +4,7 @@ from typing import Optional
 
 
 class Config(BaseSettings):
-    app_name: str = "BuyBox v2"
+    app_name: str = "Imgen Studio"
     debug: bool = True
     cors_origins: list[str] = ["http://localhost:3000"]
 

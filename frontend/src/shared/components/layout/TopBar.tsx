@@ -30,7 +30,7 @@ export function TopBar({ onToggleConsole, consoleOpen }: TopBarProps) {
     <header className="fixed top-0 left-[248px] right-0 h-[52px] bg-bg-surface border-b border-border flex items-center justify-between px-6 z-10">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm">
-        <span className="text-text-muted">BuyBox</span>
+        <span className="text-text-muted">Imgen Studio</span>
         {pageLabel && (
           <>
             <span className="text-text-muted">/</span>

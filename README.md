@@ -1,4 +1,4 @@
-# BuyBox
+# Imgen Studio
 
 AI 驱动的批量商品图生成工作台。
 
