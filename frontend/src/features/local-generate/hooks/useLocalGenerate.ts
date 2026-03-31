@@ -1,6 +1,7 @@
 "use client";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { settingsApi, localGenerateApi, workflowsApi, runsApi } from "@/shared/lib/api-client";
+import { useRunsNotification } from "@/shared/contexts/RunsNotificationContext";
 import type {
   LocalPreviewOut,
   LocalPreviewItem,
@@ -10,6 +11,7 @@ import type {
 } from "@/shared/types/common";
 
 export function useLocalGenerate() {
+  const { notifyRunStarted } = useRunsNotification();
   const [inputDir, setInputDir] = useState<string>("");
   const [outputDirectory, setOutputDirectory] = useState<string>("");
   const [previewItems, setPreviewItems] = useState<LocalPreviewItem[]>([]);
@@ -139,6 +141,7 @@ export function useLocalGenerate() {
         prompt_override: promptOverride || null,
       });
       const runId: string = (res.data as LocalBatchExecuteResponse).run_id;
+      notifyRunStarted();
 
       const pollInterval = setInterval(async () => {
         try {
@@ -161,7 +164,7 @@ export function useLocalGenerate() {
     }
   // previewItems intentionally excluded — read via ref to avoid stale closure
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputDir, outputDirectory, provider, model, size, quality, promptOverride]);
+  }, [inputDir, outputDirectory, provider, model, size, quality, promptOverride, notifyRunStarted]);
 
   const canExecute = Boolean(inputDir && outputDirectory && previewItems.length > 0 && !executing);
 

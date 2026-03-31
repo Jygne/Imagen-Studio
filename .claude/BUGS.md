@@ -26,6 +26,44 @@
 
 ---
 
+## BUG-002 · 多步 Edit 拼接 JSX 导致缩进错误引发编译失败
+
+**发生时间：** 2026-03-31
+**严重程度：** 🔴 高（前端整体失效，所有改动不生效）
+**分支：** `feat/runs-notification`
+
+### 现象
+Next.js / SWC 报 `Unexpected token. Expected jsx identifier` 语法错误，Fast Refresh 失败，前端所有改动全部不生效，用户在界面上看不到任何变化。
+
+### 根因
+对同一个 JSX 文件（`AppShell.tsx`）分两步 `Edit`，第一步加了开标签 `<RunsNotificationProvider>`，第二步补了闭标签。拼接后新标签与 `<LocaleProvider>` 处于同一缩进层级，SWC 编译器解析 JSX 嵌套关系失败。
+
+```jsx
+// ❌ 错误：两个标签同缩进，SWC 报 Syntax Error
+<LocaleProvider>
+<RunsNotificationProvider>
+  <div>...</div>
+</RunsNotificationProvider>
+</LocaleProvider>
+
+// ✅ 正确：子标签必须比父标签多缩进一级
+<LocaleProvider>
+  <RunsNotificationProvider>
+    <div>...</div>
+  </RunsNotificationProvider>
+</LocaleProvider>
+```
+
+### 修复
+用 `Write` 整体重写 `AppShell.tsx`，保证缩进层级正确，编译恢复正常。
+
+### 预防措施
+- 对 JSX 文件做多步 Edit 后，**必须用 `Read` 检查完整文件**，确认所有标签缩进层级正确
+- 凡是新增 Provider / Wrapper 嵌套，优先用 `Write` 整体重写，而非多次 `Edit` 拼接
+- 改动 JSX 文件后，检查 `/tmp/imagen-frontend.log` 确认 `✓ Compiled` 无报错再收工
+
+---
+
 ## Merge 前检查清单（每次必做）
 
 在执行任何 `git merge` / 「完成并结束分支」之前，按顺序确认：

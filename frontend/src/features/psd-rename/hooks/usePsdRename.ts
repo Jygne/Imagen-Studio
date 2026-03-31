@@ -1,6 +1,7 @@
 "use client";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { settingsApi, psdRenameApi, runsApi } from "@/shared/lib/api-client";
+import { useRunsNotification } from "@/shared/contexts/RunsNotificationContext";
 import type { RunOut } from "@/shared/types/common";
 
 export interface PsdPreviewItem {
@@ -17,6 +18,7 @@ interface PsdPreviewResponse {
 }
 
 export function usePsdRename() {
+  const { notifyRunStarted } = useRunsNotification();
   const [inputDir, setInputDir] = useState<string>("");
   const [outputDirectory, setOutputDirectory] = useState<string>("");
   const [previewItems, setPreviewItems] = useState<PsdPreviewItem[]>([]);
@@ -140,6 +142,7 @@ export function usePsdRename() {
         skip_no_text: skipNoText,
       });
       const runId: string = (res.data as { run_id: string }).run_id;
+      notifyRunStarted();
 
       const pollInterval = setInterval(async () => {
         try {
@@ -161,7 +164,7 @@ export function usePsdRename() {
       setExecuting(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputDir, outputDirectory, namePixel, nameShape, deleteHidden, flattenGroups, skipNoText]);
+  }, [inputDir, outputDirectory, namePixel, nameShape, deleteHidden, flattenGroups, skipNoText, notifyRunStarted]);
 
   const canExecute = Boolean(inputDir && outputDirectory && previewItems.length > 0 && !executing);
 

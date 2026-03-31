@@ -6,10 +6,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useLocale } from "@/shared/lib/i18n";
+import { useRunsNotification } from "@/shared/contexts/RunsNotificationContext";
 
 function NavItem({
-  href, label, icon: Icon,
-}: { href: string; label: string; icon: React.ElementType }) {
+  href, label, icon: Icon, badge,
+}: { href: string; label: string; icon: React.ElementType; badge?: boolean }) {
   const pathname = usePathname();
   const active = pathname === href || pathname.startsWith(href + "/");
 
@@ -23,7 +24,12 @@ function NavItem({
           : "text-text-secondary hover:text-text-primary hover:bg-bg-hover"
       )}
     >
-      <Icon size={16} strokeWidth={active ? 2.5 : 1.8} />
+      <span className="relative">
+        <Icon size={16} strokeWidth={active ? 2.5 : 1.8} />
+        {badge && (
+          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500" />
+        )}
+      </span>
       {label}
     </Link>
   );
@@ -31,13 +37,14 @@ function NavItem({
 
 export function Sidebar() {
   const { t } = useLocale();
+  const { hasUnread } = useRunsNotification();
 
   const WORKFLOW_NAV = [
     { href: "/local-generate", label: t("localGenerate"), icon: Upload },
     { href: "/sheet-generate", label: t("sheetGenerate"), icon: Table2 },
     { href: "/seg-generate",   label: t("segGenerate"),   icon: Scissors },
     { href: "/psd-rename",     label: t("psdRename"),     icon: Layers },
-    { href: "/runs",           label: t("runs"),          icon: History },
+    { href: "/runs",           label: t("runs"),          icon: History, badge: hasUnread },
   ];
 
   const CONFIG_NAV = [
