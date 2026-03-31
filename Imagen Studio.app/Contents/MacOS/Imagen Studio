@@ -1,4 +1,0 @@
-#!/bin/bash
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-osascript -e "tell application \"Terminal\" to do script \"'$PROJECT/start.sh'\""

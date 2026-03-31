@@ -1,6 +1,7 @@
 "use client";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { settingsApi, segGenerateApi, workflowsApi, runsApi } from "@/shared/lib/api-client";
+import { useRunsNotification } from "@/shared/contexts/RunsNotificationContext";
 import type {
   LocalPreviewOut,
   LocalPreviewItem,
@@ -8,6 +9,7 @@ import type {
 } from "@/shared/types/common";
 
 export function useSegGenerate() {
+  const { notifyRunStarted } = useRunsNotification();
   const [inputDir, setInputDir] = useState<string>("");
   const [outputDirectory, setOutputDirectory] = useState<string>("");
   const [previewItems, setPreviewItems] = useState<LocalPreviewItem[]>([]);
@@ -125,6 +127,7 @@ export function useSegGenerate() {
         included_filenames: currentItems.map((i) => i.filename),
       });
       const runId: string = (res.data as { run_id: string }).run_id;
+      notifyRunStarted();
 
       const pollInterval = setInterval(async () => {
         try {
@@ -147,7 +150,7 @@ export function useSegGenerate() {
     }
   // previewItems intentionally excluded — read via ref to avoid stale closure
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputDir, outputDirectory]);
+  }, [inputDir, outputDirectory, notifyRunStarted]);
 
   const canExecute = Boolean(inputDir && outputDirectory && previewItems.length > 0 && !executing);
 

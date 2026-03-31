@@ -9,6 +9,7 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { useLocale } from "@/shared/lib/i18n";
 import { segGenerateApi } from "@/shared/lib/api-client";
+import { useRunsNotification } from "@/shared/contexts/RunsNotificationContext";
 import type { RunDetailOut, RunItemOut, RunListItemOut, ItemStatus } from "@/shared/types/common";
 
 // ── Thumbnail ────────────────────────────────────────────────────────────────
@@ -501,6 +502,8 @@ function ComparisonModal({
 
 export function RunsPage() {
   const { t } = useLocale();
+  const { markAllRead } = useRunsNotification();
+  useEffect(() => { markAllRead(); }, [markAllRead]);
   const {
     items, totals, loading, error,
     selectedRunId, detail, loadingDetail,

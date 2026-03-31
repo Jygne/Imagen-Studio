@@ -36,6 +36,10 @@ frontend/.turbo/
 # ─── Output images (generated content, not source code) ───────────────────────
 backend/data/outputs/
 
+# ─── macOS App Bundle (compiled artifact, not source) ────────────────────────
+*.app/
+*.app
+
 # ─── macOS system files ───────────────────────────────────────────────────────
 .DS_Store
 **/.DS_Store
