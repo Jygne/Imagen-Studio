@@ -24,13 +24,11 @@ function NavItem({
           : "text-text-secondary hover:text-text-primary hover:bg-bg-hover"
       )}
     >
-      <span className="relative">
-        <Icon size={16} strokeWidth={active ? 2.5 : 1.8} />
-        {badge && (
-          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500" />
-        )}
-      </span>
+      <Icon size={16} strokeWidth={active ? 2.5 : 1.8} />
       {label}
+      {badge && (
+        <span className="w-2 h-2 rounded-full bg-red-500 inline-block ml-1" />
+      )}
     </Link>
   );
 }
