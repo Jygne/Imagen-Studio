@@ -351,7 +351,7 @@ function renameLayers(layerSet, counters, totalCounts) {{
 
 // ── Process one PSD ───────────────────────────────────────────────────────
 function processPSD(file) {{
-    jsxLog("opening|" + file.name);
+    jsxLog("opened|" + file.name);
     var doc = null;
     var wasAlreadyOpen = false;
     for (var d = 0; d < app.documents.length; d++) {{
