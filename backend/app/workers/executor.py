@@ -115,6 +115,76 @@ def _save_output(
     return filepath
 
 
+def _check_skip_conditions(row: dict, workflow_type: WorkflowType) -> str | None:
+    """
+    Check upfront whether an item should be skipped before it enters RUNNING.
+    Returns a skip reason string if it should be skipped, None otherwise.
+    """
+    image_url = row.get("rsku_model_image_url", "").strip()
+    if not image_url:
+        return "No image URL (rsku_model_image_url is empty)"
+
+    if workflow_type == WorkflowType.SELLING_POINT:
+        variation = row.get("variation_1_value", "").strip()
+        selling_pts = row.get("llm_sellingpoints", "").strip()
+        if not variation and not selling_pts:
+            return "Both variation_1_value and llm_sellingpoints are empty"
+
+    return None
+
+
+def _run_item_with_start_marker(
+    item_id: str,
+    db_session_factory,
+    cancel_event: threading.Event,
+    row: dict,
+    workflow_type: WorkflowType,
+    run_source,
+    provider,
+    prompt: str,
+    size: str,
+    quality: str,
+    timeout: int,
+    output_dir: str,
+) -> dict:
+    """
+    Wrapper executed inside the worker thread.
+    Handles cancel check, upfront skip check, RUNNING marker, then delegates to _process_item.
+    """
+    # Principle 3: if cancelled before this slot was reached, skip without ever going RUNNING
+    if cancel_event.is_set():
+        return {"item_id": item_id, "status": ItemStatus.SKIPPED,
+                "skipped_reason": "Run cancelled"}
+
+    # Principle 2: if item would be skipped anyway, mark it directly without going RUNNING
+    skip_reason = _check_skip_conditions(row, workflow_type)
+    if skip_reason:
+        return {"item_id": item_id, "status": ItemStatus.SKIPPED,
+                "skipped_reason": skip_reason}
+
+    # Worker thread truly begins — mark RUNNING now
+    db = db_session_factory()
+    try:
+        RunRepository(db).update_item(
+            item_id, status=ItemStatus.RUNNING, started_at=datetime.utcnow()
+        )
+    finally:
+        db.close()
+
+    return _process_item(
+        item_id=item_id,
+        row=row,
+        workflow_type=workflow_type,
+        run_source=run_source,
+        provider=provider,
+        prompt=prompt,
+        size=size,
+        quality=quality,
+        timeout=timeout,
+        output_dir=output_dir,
+    )
+
+
 def _process_item(
     item_id: str,
     row: dict,
@@ -128,6 +198,8 @@ def _process_item(
     output_dir: str,
 ) -> dict:
     """Execute a single item. Returns result dict. Never raises."""
+    # Skip conditions are now checked upfront in _run_item_with_start_marker,
+    # but kept here as a safety fallback for direct calls.
     image_url = row.get("rsku_model_image_url", "").strip()
 
     if not image_url:
@@ -241,10 +313,6 @@ def _execute_psd_rename_batch(run_id, run, items, settings, run_repo, cancel_eve
         for item in items if item.source_image_url
     }
 
-    # Mark all items as running
-    for item in items:
-        run_repo.update_item(item.id, status=ItemStatus.RUNNING, started_at=datetime.utcnow())
-
     try:
         jsx_code = build_rename_jsx(
             psd_paths=psd_paths,
@@ -270,6 +338,32 @@ def _execute_psd_rename_batch(run_id, run, items, settings, run_repo, cancel_eve
     success = failed = skipped = 0
     last_offset = 0
     cancelled = False
+    completed_item_ids: set[str] = set()
+
+    def _handle_log_events(events: list) -> None:
+        nonlocal success, failed, skipped
+        for event in events:
+            item = filename_to_item.get(event["filename"])
+            if not item:
+                continue
+            if event["type"] == "opened":
+                run_repo.update_item(item.id, status=ItemStatus.RUNNING, started_at=datetime.utcnow())
+            elif event["type"] == "saved":
+                out_path = os.path.join(output_folder, event["filename"])
+                run_repo.update_item(item.id, status=ItemStatus.SUCCESS,
+                                     output_file_path=out_path, finished_at=datetime.utcnow())
+                completed_item_ids.add(item.id)
+                success += 1
+            elif event["type"] == "skipped":
+                run_repo.update_item(item.id, status=ItemStatus.SKIPPED,
+                                     skipped_reason=event["message"], finished_at=datetime.utcnow())
+                completed_item_ids.add(item.id)
+                skipped += 1
+            elif event["type"] == "error":
+                run_repo.update_item(item.id, status=ItemStatus.FAILED,
+                                     error_reason=event["message"], finished_at=datetime.utcnow())
+                completed_item_ids.add(item.id)
+                failed += 1
 
     while process.poll() is None:
         if cancel_event.is_set():
@@ -278,50 +372,18 @@ def _execute_psd_rename_batch(run_id, run, items, settings, run_repo, cancel_eve
             break
 
         events, last_offset = parse_jsx_log(jsx_log_path, last_offset)
-        for event in events:
-            item = filename_to_item.get(event["filename"])
-            if not item:
-                continue
-            if event["type"] == "saved":
-                out_path = os.path.join(output_folder, event["filename"])
-                run_repo.update_item(item.id, status=ItemStatus.SUCCESS,
-                                     output_file_path=out_path, finished_at=datetime.utcnow())
-                success += 1
-            elif event["type"] == "skipped":
-                run_repo.update_item(item.id, status=ItemStatus.SKIPPED,
-                                     skipped_reason=event["message"], finished_at=datetime.utcnow())
-                skipped += 1
-            elif event["type"] == "error":
-                run_repo.update_item(item.id, status=ItemStatus.FAILED,
-                                     error_reason=event["message"], finished_at=datetime.utcnow())
-                failed += 1
+        _handle_log_events(events)
         run_repo.update_run_counts(run_id, total=len(items),
                                    success=success, failed=failed, skipped=skipped)
         _time.sleep(2)
 
     # Flush remaining log lines after process exits
     events, _ = parse_jsx_log(jsx_log_path, last_offset)
-    for event in events:
-        item = filename_to_item.get(event["filename"])
-        if not item:
-            continue
-        if event["type"] == "saved":
-            out_path = os.path.join(output_folder, event["filename"])
-            run_repo.update_item(item.id, status=ItemStatus.SUCCESS,
-                                 output_file_path=out_path, finished_at=datetime.utcnow())
-            success += 1
-        elif event["type"] == "skipped":
-            run_repo.update_item(item.id, status=ItemStatus.SKIPPED,
-                                 skipped_reason=event["message"], finished_at=datetime.utcnow())
-            skipped += 1
-        elif event["type"] == "error":
-            run_repo.update_item(item.id, status=ItemStatus.FAILED,
-                                 error_reason=event["message"], finished_at=datetime.utcnow())
-            failed += 1
+    _handle_log_events(events)
 
-    # Items still RUNNING after PS exits = unaccounted (treat as failed)
+    # Items not completed by PS = unaccounted (treat as failed)
     for item in items:
-        if item.status == ItemStatus.RUNNING:
+        if item.id not in completed_item_ids:
             run_repo.update_item(item.id, status=ItemStatus.FAILED,
                                  error_reason="Photoshop exited without reporting result",
                                  finished_at=datetime.utcnow())
@@ -430,7 +492,7 @@ def execute_batch(run_id: str, db_session_factory) -> None:
             futures: dict = {}
             for item_id, (item, row) in task_map.items():
                 if cancel_event.is_set():
-                    # Mark unsubmitted items as skipped
+                    # Mark unsubmitted items as skipped immediately (never entered RUNNING)
                     run_repo.update_item(
                         item_id,
                         status=ItemStatus.SKIPPED,
@@ -439,10 +501,11 @@ def execute_batch(run_id: str, db_session_factory) -> None:
                     )
                     skipped += 1
                     continue
-                run_repo.update_item(item_id, status=ItemStatus.RUNNING, started_at=datetime.utcnow())
                 future = executor.submit(
-                    _process_item,
+                    _run_item_with_start_marker,
                     item_id=item_id,
+                    db_session_factory=db_session_factory,
+                    cancel_event=cancel_event,
                     row=row,
                     workflow_type=workflow_type,
                     run_source=run.source,

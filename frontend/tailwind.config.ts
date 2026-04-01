@@ -42,6 +42,15 @@ const config: Config = {
         sans: ["Inter", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "Fira Code", "monospace"],
       },
+      keyframes: {
+        "progress-slide": {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(600%)" },
+        },
+      },
+      animation: {
+        "progress-slide": "progress-slide 1.4s ease-in-out infinite",
+      },
     },
   },
   plugins: [],

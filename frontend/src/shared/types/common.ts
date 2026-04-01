@@ -151,6 +151,8 @@ export interface RunListItemOut {
   created_at: string;
   run_started_at: string | null;
   run_finished_at: string | null;
+  item_started_at: string | null;
+  item_finished_at: string | null;
 }
 
 export interface RunItemListOut {

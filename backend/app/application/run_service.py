@@ -87,6 +87,8 @@ class RunService:
                 created_at=run.created_at,
                 run_started_at=run.started_at,
                 run_finished_at=run.finished_at,
+                item_started_at=item.started_at,
+                item_finished_at=item.finished_at,
             )
             for item, run in rows
         ]

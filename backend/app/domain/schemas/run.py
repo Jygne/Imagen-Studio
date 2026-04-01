@@ -79,6 +79,8 @@ class RunListItemOut(BaseModel):
     created_at: datetime
     run_started_at: Optional[datetime] = None
     run_finished_at: Optional[datetime] = None
+    item_started_at: Optional[datetime] = None
+    item_finished_at: Optional[datetime] = None
 
 
 class RunItemListOut(BaseModel):

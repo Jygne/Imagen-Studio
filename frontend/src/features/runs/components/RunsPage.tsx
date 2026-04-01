@@ -71,10 +71,12 @@ function ItemRow({
   onOpenDetail: (e: React.MouseEvent) => void;
   workflowLabel: string;
 }) {
-  const pct =
-    item.run_total > 0
-      ? Math.round(((item.run_success + item.run_failed + item.run_skipped) / item.run_total) * 100)
-      : 0;
+  const itemDone =
+    item.item_status === "success" ||
+    item.item_status === "failed" ||
+    item.item_status === "skipped";
+  const isItemRunning = item.item_status === "running";
+  const pct = itemDone ? 100 : 0;
 
   const isPsdWorkflow = item.workflow_type === "psd_rename";
 
@@ -106,27 +108,25 @@ function ItemRow({
         <StatusBadge status={item.item_status} />
       </td>
       <td className="py-3 px-4">
-        <div className="flex items-center gap-2">
-          <div className="flex-1 bg-border rounded-full h-1 w-20">
+        <div className="flex-1 bg-border rounded-full h-1 w-20 overflow-hidden">
+          {isItemRunning ? (
+            <div className="h-1 w-1/3 rounded-full bg-accent animate-progress-slide" />
+          ) : (
             <div
               className={cn(
-                "h-1 rounded-full",
-                item.run_status === "failed" ? "bg-status-error" : "bg-accent"
+                "h-1 rounded-full transition-all duration-500",
+                item.item_status === "failed" ? "bg-status-error" : "bg-accent"
               )}
               style={{ width: `${pct}%` }}
             />
-          </div>
-          <span className="text-xs text-text-secondary whitespace-nowrap">
-            {item.run_success}✓{item.run_failed > 0 ? ` ${item.run_failed}✗` : ""}
-            {item.run_skipped > 0 ? ` ${item.run_skipped}⊘` : ""}
-          </span>
+          )}
         </div>
       </td>
       <td className="py-3 px-4 text-xs text-text-secondary">
         {item.model?.split("/").pop() ?? "—"}
       </td>
       <td className="py-3 px-4 text-xs text-text-muted">
-        {formatDuration(item.run_started_at, item.run_finished_at)}
+        {formatDuration(item.item_started_at, item.item_finished_at)}
       </td>
       <td className="py-3 px-4 w-10" onClick={onOpenDetail}>
         <ChevronRight
