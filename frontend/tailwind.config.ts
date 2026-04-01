@@ -12,24 +12,24 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          base: "#0D0E14",
-          surface: "#161720",
-          input: "#1E1F2B",
-          hover: "#1c1d2a",
+          base: "#1A1815",
+          surface: "#211E1B",
+          input: "#272421",
+          hover: "#2f2c29",
         },
         border: {
-          DEFAULT: "#2A2B38",
-          subtle: "#222330",
+          DEFAULT: "#3A3733",
+          subtle: "#2e2b28",
         },
         accent: {
-          DEFAULT: "#6B63FF",
-          hover: "#7c75ff",
-          muted: "#6B63FF33",
+          DEFAULT: "#E8863A",
+          hover: "#F59642",
+          muted: "#E8863A26",
         },
         text: {
-          primary: "#F0F0F5",
-          secondary: "#8A8B9A",
-          muted: "#5a5b6a",
+          primary: "#dddcda",
+          secondary: "#96918f",
+          muted: "#6e6d69",
         },
         status: {
           success: "#22C55E",
@@ -39,8 +39,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "Fira Code", "monospace"],
+        sans: ["Monaspace Krypton", "Noto Sans Mono", "system-ui", "sans-serif"],
+        mono: ["Monaspace Krypton", "Noto Sans Mono", "monospace"],
       },
       keyframes: {
         "progress-slide": {

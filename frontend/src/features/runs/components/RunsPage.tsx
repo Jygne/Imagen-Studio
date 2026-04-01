@@ -518,7 +518,7 @@ export function RunsPage() {
   };
 
   return (
-    <div className={cn(selectedRunId ? "mr-[520px]" : "")}>
+    <div className={cn("transition-all duration-200 ease-out", selectedRunId ? "mr-[520px]" : "")}>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-text-primary">{t("runsTitle")}</h1>
@@ -543,13 +543,16 @@ export function RunsPage() {
       {/* Summary Stats */}
       <div className="grid grid-cols-4 gap-3 mb-6">
         {[
-          { label: t("totalRuns"), value: totals.total_runs },
-          { label: t("totalItems"), value: totals.total_items },
-          { label: t("succeeded"), value: totals.total_success, color: "text-status-success" },
-          { label: t("failed"), value: totals.total_failed, color: "text-status-error" },
+          { label: t("totalRuns"),   value: totals.total_runs },
+          { label: t("totalItems"),  value: totals.total_items },
+          { label: t("succeeded"),   value: totals.total_success,  color: "#22C55E" },
+          { label: t("failed"),      value: totals.total_failed,   color: "#EF4444" },
         ].map((s) => (
           <div key={s.label} className="bg-bg-surface border border-border rounded-xl p-4">
-            <p className={cn("text-2xl font-semibold", s.color ?? "text-text-primary")}>{s.value}</p>
+            <p
+              className="text-2xl font-semibold lcd"
+              style={{ color: s.color ?? "#dddcda" }}
+            >{s.value}</p>
             <p className="text-xs text-text-secondary mt-1">{s.label}</p>
           </div>
         ))}

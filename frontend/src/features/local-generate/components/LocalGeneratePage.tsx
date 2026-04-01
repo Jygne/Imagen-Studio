@@ -198,11 +198,28 @@ export function LocalGeneratePage() {
             {/* Active Run Progress */}
             {activeRun && (
               <div className="mb-4 p-3 bg-bg-input border border-border rounded-lg">
+                {/* LCD 双列显示 */}
+                <div className="flex gap-3 mb-3">
+                  <div className="flex-1 bg-bg-base rounded-lg px-3 py-2">
+                    <p className="text-[10px] text-text-muted uppercase tracking-widest mb-1">processed</p>
+                    <p className="lcd text-2xl">
+                      {String(activeRun.success + activeRun.failed + activeRun.skipped).padStart(4, "0")}
+                    </p>
+                  </div>
+                  <div className="flex-1 bg-bg-base rounded-lg px-3 py-2">
+                    <p className="text-[10px] text-text-muted uppercase tracking-widest mb-1">total</p>
+                    <p className="lcd text-2xl">
+                      {String(activeRun.total).padStart(4, "0")}
+                    </p>
+                  </div>
+                </div>
                 <div className="flex items-center justify-between mb-2">
                   <StatusBadge status={activeRun.status} />
-                  <span className="text-xs text-text-secondary font-mono">
-                    {activeRun.success + activeRun.failed + activeRun.skipped} / {activeRun.total}
-                  </span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-status-success">✓ {activeRun.success}</span>
+                    <span className="text-status-error">✗ {activeRun.failed}</span>
+                    <span className="text-status-warning">⊘ {activeRun.skipped}</span>
+                  </div>
                 </div>
                 <div className="w-full bg-border rounded-full h-1.5">
                   <div
@@ -216,11 +233,6 @@ export function LocalGeneratePage() {
                         : "0%"
                     }}
                   />
-                </div>
-                <div className="flex gap-3 mt-2 text-xs">
-                  <span className="text-status-success">✓ {activeRun.success}</span>
-                  <span className="text-status-error">✗ {activeRun.failed}</span>
-                  <span className="text-status-warning">⊘ {activeRun.skipped}</span>
                 </div>
               </div>
             )}
