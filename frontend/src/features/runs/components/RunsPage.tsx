@@ -24,14 +24,14 @@ function Thumbnail({ url, size = 40, isPsd = false }: { url: string | null; size
         <svg width="30" height="30" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
           {/* File body — diagonal fold at top-right */}
           <path d="M5 2 L17 2 L23 8 L23 26 Q23 27 22 27 L6 27 Q5 27 5 26 Z"
-            fill="#0d0d1f" stroke="#5b5bd6" strokeWidth="1.4" strokeLinejoin="round"/>
+            fill="#1C1812" stroke="#E8863A" strokeWidth="1.4" strokeLinejoin="round"/>
           {/* Fold flap fill */}
-          <path d="M17 2 L23 8 L17 8 Z" fill="#5b5bd6" opacity="0.4"/>
+          <path d="M17 2 L23 8 L17 8 Z" fill="#E8863A" opacity="0.4"/>
           {/* Fold flap border */}
-          <line x1="17" y1="2" x2="17" y2="8" stroke="#5b5bd6" strokeWidth="1.2"/>
-          <line x1="17" y1="8" x2="23" y2="8" stroke="#5b5bd6" strokeWidth="1.2"/>
+          <line x1="17" y1="2" x2="17" y2="8" stroke="#E8863A" strokeWidth="1.2"/>
+          <line x1="17" y1="8" x2="23" y2="8" stroke="#E8863A" strokeWidth="1.2"/>
           {/* PSD banner */}
-          <rect x="2" y="17.5" width="24" height="9" rx="2" fill="#5b5bd6"/>
+          <rect x="2" y="17.5" width="24" height="9" rx="2" fill="#E8863A"/>
           <text x="14" y="24.8" textAnchor="middle" fontSize="7.2" fontWeight="800"
             fontFamily="Arial, sans-serif" fill="white" letterSpacing="0.6">PSD</text>
         </svg>

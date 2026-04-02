@@ -2,11 +2,44 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Upload, Table2, History, Key, Sheet, Settings, Box, Scissors, Layers
+  Upload, Table2, History, Key, Sheet, Settings, Scissors, Layers
 } from "lucide-react";
+
 import { cn } from "@/shared/lib/utils";
 import { useLocale } from "@/shared/lib/i18n";
 import { useRunsNotification } from "@/shared/contexts/RunsNotificationContext";
+
+function PixelLogo() {
+  // 方案A: 4×4 pixel mosaic, main-diagonal gradient (top-left↔bottom-right bright)
+  const grid = [
+    [1.00, 0.60, 0.25, 0.08],
+    [0.75, 1.00, 0.60, 0.25],
+    [0.25, 0.60, 1.00, 0.75],
+    [0.08, 0.25, 0.60, 1.00],
+  ];
+  const s = 3;    // square size
+  const g = 0.6;  // gap
+  const step = s + g;
+  const offset = (14 - (4 * s + 3 * g)) / 2;
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {grid.map((row, ri) =>
+        row.map((opacity, ci) => (
+          <rect
+            key={`${ri}-${ci}`}
+            x={offset + ci * step}
+            y={offset + ri * step}
+            width={s}
+            height={s}
+            rx={0.5}
+            fill="white"
+            fillOpacity={opacity}
+          />
+        ))
+      )}
+    </svg>
+  );
+}
 
 function NavItem({
   href, label, icon: Icon, badge,
@@ -60,7 +93,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 h-[52px] border-b border-border shrink-0">
         <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
-          <Box size={14} className="text-white" />
+          <PixelLogo />
         </div>
         <span className="text-text-primary font-semibold text-sm">Imagen Studio</span>
       </div>
