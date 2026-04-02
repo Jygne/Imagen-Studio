@@ -12,18 +12,23 @@ import requests
 from io import BytesIO
 from PIL import Image
 
+from app.config import config
+
 logger = logging.getLogger(__name__)
 
-PISEG_URL = (
-    "https://http-gateway.spex.shopee.sg"
-    "/sprpc/ai_engine_platform.mmuplt.pisegv2.algo"
-)
 PISEG_HEADERS = {
     "Content-Type": "application/json",
     "x-sp-servicekey": "f0dd2d544097d2a938595c1d78949bd3",
     "x-sp-sdu": "ai_engine_platform.mmuplt.controller.global.liveish.master.default",
     "x-sp-timeout": "60000",
 }
+
+
+def _build_piseg_headers() -> dict[str, str]:
+    headers = dict(PISEG_HEADERS)
+    if config.piseg_auth_token:
+        headers["Authorization"] = f"Bearer {config.piseg_auth_token}"
+    return headers
 
 
 def _call_piseg(base64_image: str, max_retries: int = 3) -> dict | None:
@@ -45,9 +50,9 @@ def _call_piseg(base64_image: str, max_retries: int = 3) -> dict | None:
     for attempt in range(max_retries):
         try:
             resp = requests.post(
-                PISEG_URL,
+                config.piseg_url,
                 data=json.dumps(request_data),
-                headers=PISEG_HEADERS,
+                headers=_build_piseg_headers(),
                 timeout=60,
             )
             if resp.status_code != 200:
