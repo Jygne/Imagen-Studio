@@ -24,7 +24,7 @@ function Thumbnail({ url, size = 40, isPsd = false }: { url: string | null; size
         <svg width="30" height="30" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
           {/* File body — diagonal fold at top-right */}
           <path d="M5 2 L17 2 L23 8 L23 26 Q23 27 22 27 L6 27 Q5 27 5 26 Z"
-            fill="#1C1812" stroke="#E8863A" strokeWidth="1.4" strokeLinejoin="round"/>
+            fill="#6B3A18" stroke="#E8863A" strokeWidth="1.4" strokeLinejoin="round"/>
           {/* Fold flap fill */}
           <path d="M17 2 L23 8 L17 8 Z" fill="#E8863A" opacity="0.4"/>
           {/* Fold flap border */}
