@@ -14,10 +14,6 @@ export interface ApiKeyOut {
 
 export interface AppSettings {
   output_directory: string;
-  default_provider: Provider;
-  default_model: string;
-  default_size: string;
-  default_quality: string;
   max_concurrency: number;
   timeout_seconds: number;
   clean_image_prompt: string;

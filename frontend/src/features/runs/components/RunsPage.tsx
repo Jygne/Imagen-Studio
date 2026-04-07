@@ -15,6 +15,8 @@ import type { RunDetailOut, RunItemOut, RunListItemOut, ItemStatus } from "@/sha
 // ── Thumbnail ────────────────────────────────────────────────────────────────
 
 function Thumbnail({ url, size = 40, isPsd = false }: { url: string | null; size?: number; isPsd?: boolean }) {
+  const [failed, setFailed] = useState(false);
+
   if (isPsd) {
     return (
       <div
@@ -38,7 +40,7 @@ function Thumbnail({ url, size = 40, isPsd = false }: { url: string | null; size
       </div>
     );
   }
-  if (url) {
+  if (url && !failed) {
     return (
       <img
         src={url}
@@ -47,6 +49,7 @@ function Thumbnail({ url, size = 40, isPsd = false }: { url: string | null; size
         height={size}
         className="rounded object-cover bg-bg-input"
         style={{ width: size, height: size, minWidth: size }}
+        onError={() => setFailed(true)}
       />
     );
   }
@@ -359,7 +362,10 @@ function ComparisonModal({
   onNext: () => void;
 }) {
   const { t } = useLocale();
+  const [originalFailed, setOriginalFailed] = useState(false);
   const item = items[index] ?? null;
+  // Reset error state when item changes
+  useEffect(() => { setOriginalFailed(false); }, [index]);
   const hasPrevItem = globalIndex > 0;
   const hasNextItem = globalIndex < totalItems - 1;
 
@@ -419,12 +425,13 @@ function ComparisonModal({
               {/* Original */}
               <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8 border-r border-border">
                 <p className="text-xs font-medium text-text-muted uppercase tracking-widest">{t("original")}</p>
-                {(item.source_image_access_url ?? item.source_image_url) ? (
+                {(item.source_image_access_url ?? item.source_image_url) && !originalFailed ? (
                   <img
                     src={item.source_image_access_url ?? item.source_image_url ?? undefined}
                     alt="original"
                     className="max-w-full max-h-full object-contain rounded"
                     style={{ maxHeight: "calc(85vh - 120px)" }}
+                    onError={() => setOriginalFailed(true)}
                   />
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-text-muted">

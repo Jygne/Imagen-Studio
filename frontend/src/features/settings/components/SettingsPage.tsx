@@ -7,19 +7,6 @@ import { settingsApi } from "@/shared/lib/api-client";
 import { useLocale } from "@/shared/lib/i18n";
 import type { AppSettings } from "@/shared/types/common";
 
-const PROVIDERS = [
-  { value: "openai", label: "OpenAI" },
-  { value: "openrouter", label: "OpenRouter" },
-];
-
-const OPENAI_MODELS = ["gpt-image-1.5"];
-const OPENROUTER_MODELS = [
-  "google/gemini-2.5-flash-image",
-  "google/gemini-3.1-flash-image-preview",
-];
-
-const SIZES = ["1024x1024", "1536x1024", "1024x1536", "auto"];
-const QUALITIES = ["low", "medium", "high", "auto"];
 
 function SectionCard({ title, description, children }: {
   title: string; description?: string; children: React.ReactNode
@@ -62,22 +49,6 @@ function TextInput({ value, onChange, placeholder, className }: {
   );
 }
 
-function Select({ value, onChange, options }: {
-  value: string; onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-bg-input border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent transition-colors appearance-none cursor-pointer"
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>{o.label}</option>
-      ))}
-    </select>
-  );
-}
 
 export function SettingsPage() {
   const { t } = useLocale();
@@ -117,10 +88,6 @@ export function SettingsPage() {
 
   const set = (key: keyof AppSettings) => (value: string | number) =>
     setForm((prev) => prev ? { ...prev, [key]: value } : prev);
-
-  const modelOptions = form.default_provider === "openai"
-    ? OPENAI_MODELS.map((m) => ({ value: m, label: m }))
-    : OPENROUTER_MODELS.map((m) => ({ value: m, label: m }));
 
   return (
     <div>
@@ -168,43 +135,6 @@ export function SettingsPage() {
               </p>
             )}
           </Field>
-        </SectionCard>
-
-        {/* Provider */}
-        <SectionCard title={t("providerSection")} description={t("providerDesc")}>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label={t("defaultProvider")}>
-              <Select
-                value={form.default_provider}
-                onChange={(v) => {
-                  const models = v === "openai" ? OPENAI_MODELS : OPENROUTER_MODELS;
-                  setForm((prev) => prev ? { ...prev, default_provider: v as any, default_model: models[0] } : prev);
-                }}
-                options={PROVIDERS}
-              />
-            </Field>
-            <Field label={t("defaultModel")}>
-              <Select
-                value={form.default_model}
-                onChange={set("default_model")}
-                options={modelOptions}
-              />
-            </Field>
-            <Field label={t("defaultSize")}>
-              <Select
-                value={form.default_size}
-                onChange={set("default_size")}
-                options={SIZES.map((s) => ({ value: s, label: s }))}
-              />
-            </Field>
-            <Field label={t("defaultQuality")}>
-              <Select
-                value={form.default_quality}
-                onChange={set("default_quality")}
-                options={QUALITIES.map((q) => ({ value: q, label: q.charAt(0).toUpperCase() + q.slice(1) }))}
-              />
-            </Field>
-          </div>
         </SectionCard>
 
         {/* Execution */}

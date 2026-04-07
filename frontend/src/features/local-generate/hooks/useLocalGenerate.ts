@@ -34,12 +34,24 @@ export function useLocalGenerate() {
   const [promptOverride, setPromptOverride] = useState<string>("");
 
   const LOCAL_DIR_KEY = "local_generate_input_dir";
+  const LOCAL_PROVIDER_KEY = "local_generate_provider";
+  const LOCAL_MODEL_KEY = "local_generate_model";
+  const LOCAL_SIZE_KEY = "local_generate_size";
+  const LOCAL_QUALITY_KEY = "local_generate_quality";
+  // Flag: skip persistence effects until initialization is complete,
+  // preventing the hardcoded useState defaults from overwriting localStorage
+  const initialized = useRef(false);
 
   // On mount: restore settings + last-used input dir, then rescan if dir exists
   useEffect(() => {
     settingsApi.get().then((res) => {
       setOutputDirectory(res.data?.output_directory ?? "");
-    }).catch(() => {});
+      // Init provider/model/size/quality from localStorage (user's last manual pick)
+      setProvider((localStorage.getItem(LOCAL_PROVIDER_KEY) as Provider | null) ?? "openai");
+      setModel(localStorage.getItem(LOCAL_MODEL_KEY) ?? "gpt-image-1.5");
+      setSize(localStorage.getItem(LOCAL_SIZE_KEY) ?? "1024x1024");
+      setQuality(localStorage.getItem(LOCAL_QUALITY_KEY) ?? "medium");
+    }).catch(() => {}).finally(() => { initialized.current = true; });
 
     const savedDir = localStorage.getItem(LOCAL_DIR_KEY);
     if (savedDir) {
@@ -59,6 +71,13 @@ export function useLocalGenerate() {
       localStorage.setItem(LOCAL_DIR_KEY, inputDir);
     }
   }, [inputDir]);
+
+  // Persist provider/model/size/quality — skip until initialization completes
+  // to prevent hardcoded useState defaults from overwriting localStorage on mount
+  useEffect(() => { if (initialized.current) localStorage.setItem(LOCAL_PROVIDER_KEY, provider); }, [provider]);
+  useEffect(() => { if (initialized.current) localStorage.setItem(LOCAL_MODEL_KEY, model); }, [model]);
+  useEffect(() => { if (initialized.current) localStorage.setItem(LOCAL_SIZE_KEY, size); }, [size]);
+  useEffect(() => { if (initialized.current) localStorage.setItem(LOCAL_QUALITY_KEY, quality); }, [quality]);
 
   const _applyPreview = useCallback((data: LocalPreviewOut) => {
     setPreviewItems(data.preview_items);

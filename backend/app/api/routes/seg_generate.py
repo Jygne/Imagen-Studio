@@ -114,20 +114,16 @@ def get_psd_previews(
     Returns:
         { "layers": [{"name": "product", "data_url": "data:image/png;base64,..."}] }
     """
-    from app.infrastructure.db.repositories.settings_repo import SettingsRepository
-
-    settings = SettingsRepository(db).get_settings()
-    output_dir = settings.output_directory
+    from app.infrastructure.db.database import RunItemORM
 
     file_path = Path(path)
     if not file_path.is_file():
         return {"layers": []}
 
-    if output_dir:
-        try:
-            file_path.resolve().relative_to(Path(output_dir).resolve())
-        except ValueError:
-            raise HTTPException(status_code=403, detail="Access denied")
+    # Security: path must be a registered output in the DB (works for all historical runs)
+    item_record = db.query(RunItemORM).filter(RunItemORM.output_file_path == path).first()
+    if not item_record:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     try:
         from psd_tools import PSDImage
