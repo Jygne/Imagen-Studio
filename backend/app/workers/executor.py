@@ -146,6 +146,7 @@ def _run_item_with_start_marker(
     quality: str,
     timeout: int,
     output_dir: str,
+    seg_user_token: str = "",
 ) -> dict:
     """
     Wrapper executed inside the worker thread.
@@ -182,6 +183,7 @@ def _run_item_with_start_marker(
         quality=quality,
         timeout=timeout,
         output_dir=output_dir,
+        seg_user_token=seg_user_token,
     )
 
 
@@ -196,6 +198,7 @@ def _process_item(
     quality: str,
     timeout: int,
     output_dir: str,
+    seg_user_token: str = "",
 ) -> dict:
     """Execute a single item. Returns result dict. Never raises."""
     # Skip conditions are now checked upfront in _run_item_with_start_marker,
@@ -222,7 +225,7 @@ def _process_item(
     try:
         if workflow_type == WorkflowType.SEG_IMAGE:
             # image_url is the local file path for seg workflow
-            segments = process_seg_image(image_url)
+            segments = process_seg_image(image_url, user_token=seg_user_token)
             try:
                 psd_bytes = build_psd(image_url, segments)
                 output_bytes = psd_bytes
@@ -439,6 +442,9 @@ def execute_batch(run_id: str, db_session_factory) -> None:
             "data", "outputs"
         )
 
+        # Seg user token (for office network proxy)
+        seg_user_token = settings.seg_user_token or ""
+
         # PSD_RENAME: dedicated execution path (Photoshop ExtendScript)
         if workflow_type == WorkflowType.PSD_RENAME:
             run_repo.update_run_status(run_id, RunStatus.RUNNING, started_at=datetime.utcnow())
@@ -515,6 +521,7 @@ def execute_batch(run_id: str, db_session_factory) -> None:
                     quality=quality,
                     timeout=timeout,
                     output_dir=output_dir,
+                    seg_user_token=seg_user_token,
                 )
                 futures[future] = item_id
 

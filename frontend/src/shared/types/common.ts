@@ -18,6 +18,7 @@ export interface AppSettings {
   timeout_seconds: number;
   clean_image_prompt: string;
   selling_point_prompt: string;
+  seg_user_token: string;
 }
 
 export interface GoogleSheetConfig {

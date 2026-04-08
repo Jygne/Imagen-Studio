@@ -161,6 +161,17 @@ export function SettingsPage() {
           </div>
         </SectionCard>
 
+        {/* Seg User Token */}
+        <SectionCard title={t("segUserTokenSection")} description={t("segUserTokenDesc")}>
+          <Field label={t("segUserToken")}>
+            <TextInput
+              value={form.seg_user_token}
+              onChange={set("seg_user_token")}
+              placeholder={t("segUserTokenPlaceholder")}
+            />
+          </Field>
+        </SectionCard>
+
         {/* Prompts */}
         <SectionCard title={t("promptsSection")} description={t("promptsDesc")}>
           <div className="space-y-4">

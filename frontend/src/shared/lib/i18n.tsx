@@ -26,6 +26,10 @@ const translations = {
     segGenerate: "Seg Generate",
     segTitle: "Seg Generate",
     segDesc: "Batch segment product images and export PSD",
+    segUserTokenSection: "Seg Generate — Office Network",
+    segUserTokenDesc: "Required when accessing from office network (http-gateway-proxy). Leave empty on non-office networks.",
+    segUserToken: "User Space Token",
+    segUserTokenPlaceholder: "Paste your Space user token here",
 
     // ── PSD Rename ───────────────────────────────────────────
     psdRename: "PSD Rename",
@@ -221,6 +225,10 @@ const translations = {
     segGenerate: "分割抠图",
     segTitle: "分割抠图",
     segDesc: "批量分割商品图并导出 PSD",
+    segUserTokenSection: "分割抠图 — 办公网认证",
+    segUserTokenDesc: "办公网环境必填（走 http-gateway-proxy）。非办公网可留空。",
+    segUserToken: "User Space Token",
+    segUserTokenPlaceholder: "粘贴你的 Space user token",
 
     // ── PSD Rename ───────────────────────────────────────────
     psdRename: "PSD 重命名",

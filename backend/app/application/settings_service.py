@@ -37,6 +37,7 @@ class SettingsService:
             default_quality=s.default_quality,
             max_concurrency=s.max_concurrency,
             timeout_seconds=s.timeout_seconds,
+            seg_user_token=s.seg_user_token or "",
             clean_image_prompt=s.clean_image_prompt or "",
             selling_point_prompt=s.selling_point_prompt or "",
         )

@@ -12,6 +12,7 @@ class AppSettings:
     default_quality: ImageQuality = ImageQuality.MEDIUM
     max_concurrency: int = 3
     timeout_seconds: int = 120
+    seg_user_token: str = ""
     clean_image_prompt: str = (
         "严格保持商品主体不变\n"
         "对商品图背景进行重绘，设计同风格不同样式的背景，背景不抢夺商品主体视觉\n"

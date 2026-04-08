@@ -12,11 +12,17 @@ import requests
 from io import BytesIO
 from PIL import Image
 
-from app.config import config
-
 logger = logging.getLogger(__name__)
 
-PISEG_HEADERS = {
+PISEG_URL_DIRECT = (
+    "https://http-gateway.spex.shopee.sg"
+    "/sprpc/ai_engine_platform.mmuplt.pisegv2.algo"
+)
+PISEG_URL_PROXY = (
+    "https://http-gateway-proxy.spex.shopee.sg"
+    "/sprpc/ai_engine_platform.mmuplt.pisegv2.algo"
+)
+PISEG_HEADERS_BASE = {
     "Content-Type": "application/json",
     "x-sp-servicekey": "f0dd2d544097d2a938595c1d78949bd3",
     "x-sp-sdu": "ai_engine_platform.mmuplt.controller.global.liveish.master.default",
@@ -24,15 +30,16 @@ PISEG_HEADERS = {
 }
 
 
-def _build_piseg_headers() -> dict[str, str]:
-    headers = dict(PISEG_HEADERS)
-    if config.piseg_auth_token:
-        headers["Authorization"] = f"Bearer {config.piseg_auth_token}"
-    return headers
+def _call_piseg(base64_image: str, user_token: str = "", max_retries: int = 3) -> dict:
+    """调用 pisegv2，返回 task_result 或 None。
+    有 user_token → 走 office proxy 域名 + Authorization header
+    无 user_token → 走 direct 域名（非办公网环境）
+    """
+    url = PISEG_URL_PROXY if user_token else PISEG_URL_DIRECT
+    headers = dict(PISEG_HEADERS_BASE)
+    if user_token:
+        headers["Authorization"] = f"Bearer {user_token}"
 
-
-def _call_piseg(base64_image: str, max_retries: int = 3) -> dict | None:
-    """调用 pisegv2，返回 task_result 或 None。"""
     extra_info = json.dumps({"is_upload": False, "cates": ["", "", ""], "bboxes": []})
     request_data = {
         "biz_type": "mmu_test",
@@ -47,30 +54,34 @@ def _call_piseg(base64_image: str, max_retries: int = 3) -> dict | None:
         },
     }
 
+    last_error = "unknown error"
     for attempt in range(max_retries):
         try:
             resp = requests.post(
-                config.piseg_url,
+                url,
                 data=json.dumps(request_data),
-                headers=_build_piseg_headers(),
+                headers=headers,
                 timeout=60,
             )
             if resp.status_code != 200:
-                logger.warning("[piseg] HTTP %s, body=%r, attempt %d/%d", resp.status_code, resp.text[:200], attempt + 1, max_retries)
+                last_error = f"HTTP {resp.status_code}: {resp.text[:300]}"
+                logger.warning("[piseg] %s, attempt %d/%d", last_error, attempt + 1, max_retries)
                 time.sleep(1)
                 continue
-            logger.info("[piseg] status=%s body_len=%d body_preview=%r", resp.status_code, len(resp.content), resp.text[:200])
+            logger.info("[piseg] status=%s body_len=%d body_preview=%r", resp.status_code, len(resp.content), resp.text[:300])
             resp_json = resp.json()
             if "task_result" not in resp_json:
-                logger.warning("[piseg] no task_result, attempt %d/%d", attempt + 1, max_retries)
+                last_error = f"no task_result in response: {resp.text[:300]}"
+                logger.warning("[piseg] %s, attempt %d/%d", last_error, attempt + 1, max_retries)
                 time.sleep(1)
                 continue
             return resp_json["task_result"]
         except Exception as e:
-            logger.warning("[piseg] exception: %s, attempt %d/%d", e, attempt + 1, max_retries)
+            last_error = f"exception: {e}"
+            logger.warning("[piseg] %s, attempt %d/%d", last_error, attempt + 1, max_retries)
             time.sleep(1)
 
-    return None
+    raise RuntimeError(f"piseg failed after {max_retries} retries: {last_error}")
 
 
 def _get_all_segments(seg_results: list[dict]) -> list[dict]:
@@ -84,12 +95,13 @@ def _get_all_segments(seg_results: list[dict]) -> list[dict]:
     return individual if individual else [seg_results[0]]
 
 
-def process_seg_image(image_path: str) -> list[dict]:
+def process_seg_image(image_path: str, user_token: str = "") -> list[dict]:
     """
     主入口：本地图片 → piseg API → 所有独立主体分割结果列表
 
     Args:
         image_path: 本地图片的绝对路径
+        user_token: office network proxy token (from settings)
 
     Returns:
         list of dict, each:
@@ -102,15 +114,19 @@ def process_seg_image(image_path: str) -> list[dict]:
     Raises:
         RuntimeError: API 调用失败或解析出错
     """
-    # 1. 读取本地图片并 base64 编码
-    with open(image_path, "rb") as f:
-        image_bytes = f.read()
-    base64_image = base64.b64encode(image_bytes).decode("utf-8")
+    # 1. 读取本地图片，确保转为 JPEG 后再 base64 编码
+    # piseg API 只接受 JPEG；PNG/WEBP 等格式会返回空响应
+    img = Image.open(image_path)
+    if img.mode in ("RGBA", "LA", "P"):
+        img = img.convert("RGB")
+    elif img.mode != "RGB":
+        img = img.convert("RGB")
+    buf = BytesIO()
+    img.save(buf, format="JPEG", quality=95)
+    base64_image = base64.b64encode(buf.getvalue()).decode("utf-8")
 
     # 2. 调用 pisegv2
-    task_result = _call_piseg(base64_image)
-    if task_result is None:
-        raise RuntimeError("piseg API call failed after retries")
+    task_result = _call_piseg(base64_image, user_token=user_token)
 
     # 3. 解析结果
     try:

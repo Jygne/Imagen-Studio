@@ -12,6 +12,7 @@ class AppSettingsOut(BaseModel):
     default_quality: ImageQuality
     max_concurrency: int
     timeout_seconds: int
+    seg_user_token: str
     clean_image_prompt: str
     selling_point_prompt: str
 
@@ -24,6 +25,7 @@ class AppSettingsUpdate(BaseModel):
     default_quality: Optional[ImageQuality] = None
     max_concurrency: Optional[int] = None
     timeout_seconds: Optional[int] = None
+    seg_user_token: Optional[str] = None
     clean_image_prompt: Optional[str] = None
     selling_point_prompt: Optional[str] = None
 

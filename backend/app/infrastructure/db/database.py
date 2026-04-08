@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine, Column, String, Integer, Boolean, DateTime, Text, JSON, Enum as SAEnum
+from sqlalchemy import create_engine, Column, String, Integer, Boolean, DateTime, Text, JSON, Enum as SAEnum, inspect, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from datetime import datetime
@@ -77,6 +77,7 @@ class SettingsORM(Base):
     timeout_seconds = Column(Integer, default=120)
     clean_image_prompt = Column(Text, default="")
     selling_point_prompt = Column(Text, default="")
+    seg_user_token = Column(Text, default="")
 
 
 class GoogleSheetConfigORM(Base):
@@ -94,6 +95,22 @@ class GoogleSheetConfigORM(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    _apply_sqlite_migrations()
+
+
+def _apply_sqlite_migrations() -> None:
+    """Apply small additive schema changes for existing local SQLite databases."""
+    if engine.dialect.name != "sqlite":
+        return
+
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        if "settings" not in inspector.get_table_names():
+            return
+
+        column_names = {column["name"] for column in inspector.get_columns("settings")}
+        if "seg_user_token" not in column_names:
+            conn.execute(text("ALTER TABLE settings ADD COLUMN seg_user_token TEXT DEFAULT ''"))
 
 
 def get_db() -> Session:
