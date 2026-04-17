@@ -2,11 +2,18 @@ import os
 import uuid
 import logging
 import threading
+from urllib.parse import unquote
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
+
+# PSD Rename: `osascript` may return before Photoshop finishes writing per-file log lines.
+# Keep polling the JSX log after the subprocess exits until items are accounted for or timeout.
+PSD_RENAME_POST_EXIT_DRAIN_SECS = 600.0
+PSD_RENAME_AFTER_DONE_GRACE_SECS = 45.0
+PSD_RENAME_DRAIN_POLL_INTERVAL_SECS = 1.0
 
 # ── Cancellation registry ─────────────────────────────────────────────────────
 # Maps run_id → threading.Event. Setting the event requests cancellation.
@@ -290,6 +297,7 @@ def _execute_psd_rename_batch(run_id, run, items, settings, run_repo, cancel_eve
     Generates one JSX, launches Photoshop once, polls log file to update RunItems.
     """
     import time as _time
+    from collections import defaultdict
     from pathlib import Path as _Path
 
     meta = run.run_metadata or {}
@@ -310,11 +318,13 @@ def _execute_psd_rename_batch(run_id, run, items, settings, run_repo, cancel_eve
     jsx_log_path = os.path.join(output_folder, f"psd_rename_{run_id[:8]}.log")
     psd_paths = [item.source_image_url for item in items if item.source_image_url]
 
-    # filename → item map for status updates
-    filename_to_item = {
-        _Path(item.source_image_url).name: item
-        for item in items if item.source_image_url
-    }
+    # basename → ordered list of items (matches JSX loop order; supports duplicate filenames)
+    filename_to_items: dict[str, list] = defaultdict(list)
+    for item in items:
+        if item.source_image_url:
+            filename_to_items[_Path(item.source_image_url).name].append(item)
+    opened_seq: dict[str, int] = defaultdict(int)
+    finished_seq: dict[str, int] = defaultdict(int)
 
     try:
         jsx_code = build_rename_jsx(
@@ -342,31 +352,65 @@ def _execute_psd_rename_batch(run_id, run, items, settings, run_repo, cancel_eve
     last_offset = 0
     cancelled = False
     completed_item_ids: set[str] = set()
+    seen_jsx_done = False
 
     def _handle_log_events(events: list) -> None:
-        nonlocal success, failed, skipped
+        nonlocal success, failed, skipped, seen_jsx_done
         for event in events:
-            item = filename_to_item.get(event["filename"])
-            if not item:
+            et = event["type"]
+            if et == "done":
+                seen_jsx_done = True
                 continue
-            if event["type"] == "opened":
+            if et == "started":
+                continue
+
+            # ExtendScript may log URL-encoded names (e.g. %20 for space) while Python paths use real spaces.
+            filename = unquote(event["filename"] or "")
+            lst = filename_to_items.get(filename)
+            if not lst:
+                continue
+
+            if et == "opened":
+                i = opened_seq[filename]
+                if i >= len(lst):
+                    continue
+                item = lst[i]
+                opened_seq[filename] = i + 1
                 run_repo.update_item(item.id, status=ItemStatus.RUNNING, started_at=datetime.utcnow())
-            elif event["type"] == "saved":
-                out_path = os.path.join(output_folder, event["filename"])
+                continue
+
+            if et not in ("saved", "skipped", "error"):
+                continue
+
+            i = finished_seq[filename]
+            if i >= len(lst):
+                continue
+            item = lst[i]
+            finished_seq[filename] = i + 1
+
+            if et == "saved":
+                out_path = os.path.join(output_folder, filename)
                 run_repo.update_item(item.id, status=ItemStatus.SUCCESS,
                                      output_file_path=out_path, finished_at=datetime.utcnow())
                 completed_item_ids.add(item.id)
                 success += 1
-            elif event["type"] == "skipped":
+            elif et == "skipped":
                 run_repo.update_item(item.id, status=ItemStatus.SKIPPED,
                                      skipped_reason=event["message"], finished_at=datetime.utcnow())
                 completed_item_ids.add(item.id)
                 skipped += 1
-            elif event["type"] == "error":
+            elif et == "error":
                 run_repo.update_item(item.id, status=ItemStatus.FAILED,
                                      error_reason=event["message"], finished_at=datetime.utcnow())
                 completed_item_ids.add(item.id)
                 failed += 1
+
+    def _poll_log_once() -> None:
+        nonlocal last_offset
+        events, last_offset = parse_jsx_log(jsx_log_path, last_offset)
+        _handle_log_events(events)
+        run_repo.update_run_counts(run_id, total=len(items),
+                                   success=success, failed=failed, skipped=skipped)
 
     while process.poll() is None:
         if cancel_event.is_set():
@@ -374,15 +418,45 @@ def _execute_psd_rename_batch(run_id, run, items, settings, run_repo, cancel_eve
             cancelled = True
             break
 
-        events, last_offset = parse_jsx_log(jsx_log_path, last_offset)
-        _handle_log_events(events)
-        run_repo.update_run_counts(run_id, total=len(items),
-                                   success=success, failed=failed, skipped=skipped)
+        _poll_log_once()
         _time.sleep(2)
 
-    # Flush remaining log lines after process exits
-    events, _ = parse_jsx_log(jsx_log_path, last_offset)
-    _handle_log_events(events)
+    # osascript may exit before Photoshop finishes; keep reading the log until done + grace or timeout.
+    if cancelled:
+        _poll_log_once()
+    else:
+        drain_deadline = _time.monotonic() + PSD_RENAME_POST_EXIT_DRAIN_SECS
+        done_at: float | None = None
+        while _time.monotonic() < drain_deadline:
+            if cancel_event.is_set():
+                cancelled = True
+                break
+            _poll_log_once()
+            if len(completed_item_ids) >= len(items):
+                logger.info(
+                    "[psd_rename] run %s log drain: all %d items terminal",
+                    run_id[:8], len(items),
+                )
+                break
+            if seen_jsx_done and done_at is None:
+                done_at = _time.monotonic()
+            if done_at is not None and (
+                _time.monotonic() - done_at >= PSD_RENAME_AFTER_DONE_GRACE_SECS
+            ):
+                logger.info(
+                    "[psd_rename] run %s log drain: done line seen, grace elapsed "
+                    "(completed %d/%d)",
+                    run_id[:8], len(completed_item_ids), len(items),
+                )
+                break
+            _time.sleep(PSD_RENAME_DRAIN_POLL_INTERVAL_SECS)
+        else:
+            logger.warning(
+                "[psd_rename] run %s log drain: timeout after %.0fs "
+                "(completed %d/%d, seen_jsx_done=%s)",
+                run_id[:8], PSD_RENAME_POST_EXIT_DRAIN_SECS,
+                len(completed_item_ids), len(items), seen_jsx_done,
+            )
 
     # Items not completed by PS = unaccounted (treat as failed)
     for item in items:
