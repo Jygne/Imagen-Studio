@@ -57,6 +57,38 @@ class GoogleSheetConnector:
         row1 = ws.row_values(1)
         return row1
 
+    def get_all_rows(self, spreadsheet_id: str, tab_name: str) -> list[dict]:
+        """
+        Read all rows from a tab and return dicts keyed by header name.
+        Adds 1-based sheet row indexes (header is row 1, first data row is 2).
+        """
+        ss = self.open_spreadsheet(spreadsheet_id)
+        ws = ss.worksheet(tab_name)
+        return self._get_all_rows_from_worksheet(ws)
+
+    def get_all_rows_by_gid(self, spreadsheet_id: str, worksheet_gid: int) -> tuple[str, list[dict]]:
+        """
+        Read all rows from a tab located by worksheet gid.
+        Returns (worksheet_title, rows).
+        """
+        ss = self.open_spreadsheet(spreadsheet_id)
+        ws = ss.get_worksheet_by_id(worksheet_gid)
+        return ws.title, self._get_all_rows_from_worksheet(ws)
+
+    def _get_all_rows_from_worksheet(self, ws) -> list[dict]:
+        all_values = ws.get_all_values()
+
+        if not all_values:
+            return []
+
+        headers = all_values[0]
+        result: list[dict] = []
+        for row_idx, row in enumerate(all_values[1:], start=2):
+            row_dict = build_row_dict(headers, row)
+            result.append({"row_index": row_idx, **row_dict})
+
+        return result
+
     def get_rows_where_generate_yes(
         self,
         spreadsheet_id: str,

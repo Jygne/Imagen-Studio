@@ -75,6 +75,11 @@ class SettingsORM(Base):
     default_quality = Column(String, default="medium")
     max_concurrency = Column(Integer, default=3)
     timeout_seconds = Column(Integer, default=120)
+    bb_status_api_url = Column(Text, default="")
+    bb_client_name = Column(String, default="AIGC")
+    bb_token = Column(Text, default="")
+    bb_region = Column(String, default="PH")
+    bb_hidden_no_image_status = Column(Integer, default=13)
     clean_image_prompt = Column(Text, default="")
     selling_point_prompt = Column(Text, default="")
     seg_user_token = Column(Text, default="")
@@ -109,8 +114,17 @@ def _apply_sqlite_migrations() -> None:
             return
 
         column_names = {column["name"] for column in inspector.get_columns("settings")}
-        if "seg_user_token" not in column_names:
-            conn.execute(text("ALTER TABLE settings ADD COLUMN seg_user_token TEXT DEFAULT ''"))
+        migrations = {
+            "seg_user_token": "ALTER TABLE settings ADD COLUMN seg_user_token TEXT DEFAULT ''",
+            "bb_status_api_url": "ALTER TABLE settings ADD COLUMN bb_status_api_url TEXT DEFAULT ''",
+            "bb_client_name": "ALTER TABLE settings ADD COLUMN bb_client_name VARCHAR DEFAULT 'AIGC'",
+            "bb_token": "ALTER TABLE settings ADD COLUMN bb_token TEXT DEFAULT ''",
+            "bb_region": "ALTER TABLE settings ADD COLUMN bb_region VARCHAR DEFAULT 'PH'",
+            "bb_hidden_no_image_status": "ALTER TABLE settings ADD COLUMN bb_hidden_no_image_status INTEGER DEFAULT 13",
+        }
+        for column_name, sql in migrations.items():
+            if column_name not in column_names:
+                conn.execute(text(sql))
 
 
 def get_db() -> Session:

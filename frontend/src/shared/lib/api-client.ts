@@ -39,6 +39,8 @@ export const googleSheetApi = {
   getStatus: () => apiClient.get("/google-sheet/status"),
   getPreview: (workflow_type: string) =>
     apiClient.get("/google-sheet/preview", { params: { workflow_type } }),
+  checkBbStatus: (data: { spreadsheet_url: string; tab_name: string; only_generate_yes?: boolean; limit?: number | null; start_row?: number | null; end_row?: number | null }) =>
+    apiClient.post("/google-sheet/bb-status/check", data),
 };
 
 // ── Workflows ─────────────────────────────────────────────────────────────────

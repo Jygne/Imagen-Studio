@@ -172,6 +172,19 @@ export function SettingsPage() {
           </Field>
         </SectionCard>
 
+        {/* BB Item Search */}
+        <SectionCard title={t("bbStatusSection")} description={t("bbStatusDesc")}>
+          <div className="space-y-4">
+            <Field label={t("bbToken")}>
+              <TextInput
+                value={form.bb_token}
+                onChange={set("bb_token")}
+                placeholder={t("bbTokenPlaceholder")}
+              />
+            </Field>
+          </div>
+        </SectionCard>
+
         {/* Prompts */}
         <SectionCard title={t("promptsSection")} description={t("promptsDesc")}>
           <div className="space-y-4">

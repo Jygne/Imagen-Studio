@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
@@ -11,6 +11,7 @@ from app.domain.schemas.settings import (
     GoogleSheetConfigOut, GoogleSheetConfigUpdate,
     ConnectionValidationResult, HeaderValidationResult,
     SheetStatusOut, SheetPreviewOut,
+    BBStatusCheckRequest, BBStatusCheckOut,
 )
 from app.domain.enums import WorkflowType
 
@@ -115,3 +116,13 @@ def get_sheet_status(db: Session = Depends(get_db)):
 @router.get("/google-sheet/preview", response_model=SheetPreviewOut)
 def get_preview(workflow_type: WorkflowType, db: Session = Depends(get_db)):
     return SettingsService(db).get_preview(workflow_type)
+
+
+@router.post("/google-sheet/bb-status/check", response_model=BBStatusCheckOut)
+def check_bb_status(payload: BBStatusCheckRequest, db: Session = Depends(get_db)):
+    try:
+        return SettingsService(db).check_bb_status(payload)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected BB status check error: {e}")

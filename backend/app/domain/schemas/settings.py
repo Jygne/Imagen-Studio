@@ -13,6 +13,11 @@ class AppSettingsOut(BaseModel):
     max_concurrency: int
     timeout_seconds: int
     seg_user_token: str
+    bb_status_api_url: str
+    bb_client_name: str
+    bb_token: str
+    bb_region: str
+    bb_hidden_no_image_status: int
     clean_image_prompt: str
     selling_point_prompt: str
 
@@ -26,6 +31,11 @@ class AppSettingsUpdate(BaseModel):
     max_concurrency: Optional[int] = None
     timeout_seconds: Optional[int] = None
     seg_user_token: Optional[str] = None
+    bb_status_api_url: Optional[str] = None
+    bb_client_name: Optional[str] = None
+    bb_token: Optional[str] = None
+    bb_region: Optional[str] = None
+    bb_hidden_no_image_status: Optional[int] = None
     clean_image_prompt: Optional[str] = None
     selling_point_prompt: Optional[str] = None
 
@@ -85,3 +95,39 @@ class SheetPreviewOut(BaseModel):
     tab: str
     total_yes_rows: int
     preview_rows: list[SheetPreviewRow]
+
+
+class BBStatusCheckRequest(BaseModel):
+    spreadsheet_url: str
+    tab_name: str
+    only_generate_yes: bool = False
+    limit: Optional[int] = None
+    start_row: Optional[int] = None
+    end_row: Optional[int] = None
+
+
+class BBStatusRowOut(BaseModel):
+    row_index: int
+    bb_model_id: str
+    variation_1_value: Optional[str] = None
+    generate: str = ""
+    current_status_code: Optional[int] = None
+    current_status_text: Optional[str] = None
+    need_design: bool = False
+    matched_in_bb: bool = False
+    error: Optional[str] = None
+
+
+class BBStatusCheckOut(BaseModel):
+    spreadsheet_url: str
+    spreadsheet_id: str
+    tab_name: str
+    target_status_code: int
+    total_sheet_rows: int
+    checked_rows: int
+    bb_pool_count: int
+    need_design_count: int
+    stale_count: int
+    missing_in_bb_count: int
+    error_count: int
+    rows: list[BBStatusRowOut]

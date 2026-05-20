@@ -48,6 +48,7 @@ backend/data/outputs/
 # ─── Claude Code local files ──────────────────────────────────────────────────
 .claude/launch.json
 .claude/worktrees/
+.codex/
 
 # ─── npm lock (local only) ────────────────────────────────────────────────────
 frontend/package-lock.json

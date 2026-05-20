@@ -1,5 +1,8 @@
 from __future__ import annotations
 import re
+
+import requests
+from gspread.exceptions import SpreadsheetNotFound, WorksheetNotFound
 from sqlalchemy.orm import Session
 
 from app.infrastructure.db.repositories.settings_repo import SettingsRepository
@@ -8,10 +11,12 @@ from app.domain.schemas.settings import (
     GoogleSheetConfigOut, GoogleSheetConfigUpdate,
     ConnectionValidationResult, HeaderValidationResult,
     SheetStatusOut, SheetPreviewOut, SheetPreviewRow,
+    BBStatusCheckRequest, BBStatusCheckOut, BBStatusRowOut,
 )
 from app.domain.enums import Provider, ImageSize, ImageQuality, WorkflowType
 from app.infrastructure.google_sheet.connector import GoogleSheetConnector
 from app.infrastructure.google_sheet.header_validator import validate_headers
+from app.infrastructure.providers.bb_status_client import BBStatusLookupClient
 
 
 def _extract_spreadsheet_id(url_or_id: str) -> str:
@@ -19,6 +24,19 @@ def _extract_spreadsheet_id(url_or_id: str) -> str:
     if match:
         return match.group(1)
     return url_or_id.strip()
+
+
+def _extract_sheet_gid(url: str) -> int | None:
+    match = re.search(r"[?#&]gid=(\d+)", url)
+    if match:
+        return int(match.group(1))
+    return None
+
+
+def _normalize_status_text(value: str | None) -> str:
+    if not value:
+        return ""
+    return re.sub(r"[^a-z0-9]+", "", value.lower())
 
 
 class SettingsService:
@@ -38,6 +56,11 @@ class SettingsService:
             max_concurrency=s.max_concurrency,
             timeout_seconds=s.timeout_seconds,
             seg_user_token=s.seg_user_token or "",
+            bb_status_api_url=s.bb_status_api_url or "",
+            bb_client_name=s.bb_client_name or "AIGC",
+            bb_token=s.bb_token or "",
+            bb_region=s.bb_region or "PH",
+            bb_hidden_no_image_status=s.bb_hidden_no_image_status or 13,
             clean_image_prompt=s.clean_image_prompt or "",
             selling_point_prompt=s.selling_point_prompt or "",
         )
@@ -190,4 +213,161 @@ class SettingsService:
             tab=tab,
             total_yes_rows=total,
             preview_rows=preview_rows,
+        )
+
+    def check_bb_status(self, payload: BBStatusCheckRequest) -> BBStatusCheckOut:
+        config = self.repo.get_google_sheet_config()
+        spreadsheet_url = payload.spreadsheet_url.strip()
+        spreadsheet_id = _extract_spreadsheet_id(spreadsheet_url)
+        if not spreadsheet_id:
+            raise ValueError("Spreadsheet URL or ID is required")
+        if not config.service_account_json:
+            raise ValueError("Service Account not configured")
+
+        connector = self._get_connector()
+        sheet_gid = _extract_sheet_gid(spreadsheet_url)
+        resolved_tab_name = payload.tab_name
+        try:
+            if payload.tab_name.strip():
+                all_rows = connector.get_all_rows(spreadsheet_id, payload.tab_name)
+            elif sheet_gid is not None:
+                resolved_tab_name, all_rows = connector.get_all_rows_by_gid(spreadsheet_id, sheet_gid)
+            else:
+                raise ValueError("Tab name is required unless the spreadsheet URL includes a gid.")
+        except WorksheetNotFound as e:
+            if sheet_gid is not None:
+                try:
+                    resolved_tab_name, all_rows = connector.get_all_rows_by_gid(spreadsheet_id, sheet_gid)
+                except WorksheetNotFound:
+                    raise ValueError(
+                        f"Tab '{payload.tab_name}' not found in spreadsheet. Please copy the exact tab name from Google Sheet."
+                    ) from e
+            else:
+                raise ValueError(
+                    f"Tab '{payload.tab_name}' not found in spreadsheet. Please copy the exact tab name from Google Sheet."
+                ) from e
+        except SpreadsheetNotFound as e:
+            raise ValueError(
+                "Spreadsheet not found or the configured Google Service Account does not have access to it."
+            ) from e
+        except Exception as e:
+            raise ValueError(f"Failed to read spreadsheet/tab: {e}") from e
+
+        if not all_rows:
+            return BBStatusCheckOut(
+                spreadsheet_url=spreadsheet_url,
+                spreadsheet_id=spreadsheet_id,
+                tab_name=resolved_tab_name,
+                target_status_code=self.repo.get_settings().bb_hidden_no_image_status or 13,
+                total_sheet_rows=0,
+                checked_rows=0,
+                bb_pool_count=0,
+                need_design_count=0,
+                stale_count=0,
+                missing_in_bb_count=0,
+                error_count=0,
+                rows=[],
+            )
+
+        headers = set(all_rows[0].keys())
+        if "bb_model_id" not in headers:
+            raise ValueError(f"Tab '{resolved_tab_name}' is missing required header: bb_model_id")
+        if payload.start_row is not None and payload.end_row is not None and payload.start_row > payload.end_row:
+            raise ValueError("start_row cannot be greater than end_row")
+
+        filtered_rows = []
+        for row in all_rows:
+            bb_model_id = str(row.get("bb_model_id", "")).strip()
+            if not bb_model_id:
+                continue
+            row_index = int(row.get("row_index", 0) or 0)
+            if payload.start_row is not None and row_index < payload.start_row:
+                continue
+            if payload.end_row is not None and row_index > payload.end_row:
+                continue
+            if payload.only_generate_yes:
+                generate_val = str(row.get("generate", "")).strip().upper()
+                if generate_val != "YES":
+                    continue
+            filtered_rows.append(row)
+
+        if payload.limit is not None and payload.limit > 0:
+            filtered_rows = filtered_rows[:payload.limit]
+
+        settings = self.repo.get_settings()
+        target_status = settings.bb_hidden_no_image_status or 13
+        if not filtered_rows:
+            return BBStatusCheckOut(
+                spreadsheet_url=spreadsheet_url,
+                spreadsheet_id=spreadsheet_id,
+                tab_name=resolved_tab_name,
+                target_status_code=target_status,
+                total_sheet_rows=len(all_rows),
+                checked_rows=0,
+                bb_pool_count=0,
+                need_design_count=0,
+                stale_count=0,
+                missing_in_bb_count=0,
+                error_count=0,
+                rows=[],
+            )
+
+        client = BBStatusLookupClient(
+            api_url=settings.bb_status_api_url or "",
+            client_name=settings.bb_client_name or "AIGC",
+            token=settings.bb_token or "",
+            region=settings.bb_region or "PH",
+            timeout_seconds=min(max(settings.timeout_seconds, 10), 120),
+        )
+        try:
+            status_map = client.lookup_by_status(target_status)
+        except requests.RequestException as e:
+            raise ValueError(f"BB status request failed: {e}") from e
+
+        result_rows: list[BBStatusRowOut] = []
+        need_design_count = 0
+        missing_in_bb_count = 0
+        error_count = 0
+        target_status_name = _normalize_status_text("PDP Hidden-No Image")
+
+        for row in filtered_rows:
+            bb_model_id = str(row.get("bb_model_id", "")).strip()
+            matched = status_map.get(bb_model_id)
+            matched_status_name = _normalize_status_text(matched.status_text if matched else None)
+            need_design = bool(
+                matched and (
+                    matched.status_code == target_status
+                    or matched_status_name == target_status_name
+                )
+            )
+            if need_design:
+                need_design_count += 1
+
+            result_rows.append(BBStatusRowOut(
+                row_index=row.get("row_index", 0),
+                bb_model_id=bb_model_id,
+                variation_1_value=row.get("variation_1_value") or None,
+                generate=str(row.get("generate", "")),
+                current_status_code=matched.status_code if matched else None,
+                current_status_text=matched.status_text if matched else "Not in current Hidden-No-Image pool",
+                need_design=need_design,
+                matched_in_bb=matched is not None,
+                error=None,
+            ))
+
+        stale_count = max(len(result_rows) - need_design_count, 0)
+
+        return BBStatusCheckOut(
+            spreadsheet_url=spreadsheet_url,
+            spreadsheet_id=spreadsheet_id,
+            tab_name=resolved_tab_name,
+            target_status_code=target_status,
+            total_sheet_rows=len(all_rows),
+            checked_rows=len(result_rows),
+            bb_pool_count=len(status_map),
+            need_design_count=need_design_count,
+            stale_count=stale_count,
+            missing_in_bb_count=missing_in_bb_count,
+            error_count=error_count,
+            rows=result_rows,
         )
