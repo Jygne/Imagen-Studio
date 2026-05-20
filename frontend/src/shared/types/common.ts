@@ -19,6 +19,11 @@ export interface AppSettings {
   clean_image_prompt: string;
   selling_point_prompt: string;
   seg_user_token: string;
+  bb_status_api_url: string;
+  bb_client_name: string;
+  bb_token: string;
+  bb_region: string;
+  bb_hidden_no_image_status: number;
 }
 
 export interface GoogleSheetConfig {
@@ -63,6 +68,33 @@ export interface SheetPreviewOut {
   tab: string;
   total_yes_rows: number;
   preview_rows: SheetPreviewRow[];
+}
+
+export interface BBStatusRowOut {
+  row_index: number;
+  bb_model_id: string;
+  variation_1_value: string | null;
+  generate: string;
+  current_status_code: number | null;
+  current_status_text: string | null;
+  need_design: boolean;
+  matched_in_bb: boolean;
+  error: string | null;
+}
+
+export interface BBStatusCheckOut {
+  spreadsheet_url: string;
+  spreadsheet_id: string;
+  tab_name: string;
+  target_status_code: number;
+  total_sheet_rows: number;
+  checked_rows: number;
+  bb_pool_count: number;
+  need_design_count: number;
+  stale_count: number;
+  missing_in_bb_count: number;
+  error_count: number;
+  rows: BBStatusRowOut[];
 }
 
 export interface RunItemOut {

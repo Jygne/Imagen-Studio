@@ -13,6 +13,11 @@ class AppSettings:
     max_concurrency: int = 3
     timeout_seconds: int = 120
     seg_user_token: str = ""
+    bb_status_api_url: str = ""
+    bb_client_name: str = "AIGC"
+    bb_token: str = ""
+    bb_region: str = "PH"
+    bb_hidden_no_image_status: int = 13
     clean_image_prompt: str = (
         "严格保持商品主体不变\n"
         "对商品图背景进行重绘，设计同风格不同样式的背景，背景不抢夺商品主体视觉\n"

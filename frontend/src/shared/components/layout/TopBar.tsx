@@ -17,6 +17,7 @@ export function TopBar({ onToggleConsole, consoleOpen }: TopBarProps) {
   const PAGE_LABELS: Record<string, string> = {
     "/local-generate": t("pageLocalGenerate"),
     "/sheet-generate": t("pageSheetGenerate"),
+    "/bb-search":      t("pageBbSearch"),
     "/seg-generate":   t("pageSegGenerate"),
     "/runs":           t("pageRuns"),
     "/api-keys":       t("pageApiKeys"),

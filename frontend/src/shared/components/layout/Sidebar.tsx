@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Upload, Table2, History, Key, Sheet, Settings, Scissors, Layers
+  Upload, Table2, History, Key, Sheet, Settings, Scissors, Layers, Search
 } from "lucide-react";
 
 import { cn } from "@/shared/lib/utils";
@@ -77,6 +77,7 @@ export function Sidebar() {
   const WORKFLOW_NAV = [
     { href: "/local-generate", label: t("localGenerate"), icon: Upload },
     { href: "/sheet-generate", label: t("sheetGenerate"), icon: Table2 },
+    { href: "/bb-search",      label: t("bbSearch"),      icon: Search },
     { href: "/seg-generate",   label: t("segGenerate"),   icon: Scissors },
     { href: "/psd-rename",     label: t("psdRename"),     icon: Layers },
     { href: "/runs",           label: t("runs"),          icon: History, badge: hasUnread },
