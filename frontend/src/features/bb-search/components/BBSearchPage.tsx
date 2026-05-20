@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Loader2, Link2, ShieldCheck, ScanSearch, Rows3, ExternalLink } from "lucide-react";
 
 import { useGoogleSheet } from "@/features/google-sheet/hooks/useGoogleSheet";
+import { StatusBadge } from "@/shared/components/ui/StatusBadge";
 import { useLocale } from "@/shared/lib/i18n";
 import { cn } from "@/shared/lib/utils";
 
@@ -35,41 +36,23 @@ function SummaryPill({
   }[tone];
 
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs", toneClass)}>
+    <span className={cn("inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium", toneClass)}>
       <span>{label}</span>
       <span className="font-medium">{value}</span>
     </span>
   );
 }
 
-function DecisionBadge({ active, children }: { active: boolean; children: React.ReactNode }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium",
-        active
-          ? "border-status-success/20 bg-status-success/10 text-status-success"
-          : "border-border bg-bg-input/60 text-text-secondary"
-      )}
-    >
-      {children}
-    </span>
-  );
-}
+function DecisionText({ active, children }: { active: boolean; children: React.ReactNode }) {
+  if (active) {
+    return (
+      <span className="inline-flex items-center rounded-full border border-status-success/20 bg-status-success/10 px-2.5 py-1 text-[11px] font-medium text-status-success">
+        {children}
+      </span>
+    );
+  }
 
-function MatchBadge({ matched, children }: { matched: boolean; children: React.ReactNode }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium",
-        matched
-          ? "border-accent/20 bg-accent/10 text-accent"
-          : "border-border bg-bg-input/60 text-text-secondary"
-      )}
-    >
-      {children}
-    </span>
-  );
+  return <span className="text-xs font-medium text-text-secondary">{children}</span>;
 }
 
 export function BBSearchPage() {
@@ -106,7 +89,7 @@ export function BBSearchPage() {
           ? [{ label: t("bbNoLongerNeeded"), value: bbStatusResult.stale_count, tone: "warning" as const }]
           : []),
         ...(bbStatusResult.missing_in_bb_count > 0
-          ? [{ label: t("bbNotMatched"), value: bbStatusResult.missing_in_bb_count, tone: "neutral" as const }]
+          ? [{ label: t("bbNotMatched"), value: bbStatusResult.missing_in_bb_count, tone: "error" as const }]
           : []),
         ...(bbStatusResult.error_count > 0
           ? [{ label: t("statusFailed"), value: bbStatusResult.error_count, tone: "error" as const }]
@@ -132,7 +115,6 @@ export function BBSearchPage() {
           <div className="rounded-xl border border-border bg-bg-surface p-5">
             <div className="mb-4">
               <h2 className="text-sm font-semibold text-text-primary">{t("bbSearchPanelTitle")}</h2>
-              <p className="mt-1 text-xs leading-5 text-text-secondary">{t("bbSearchDynamicSheetHint")}</p>
             </div>
 
             <div className="mb-4 rounded-lg border border-border bg-bg-input/40 px-3 py-3 text-xs text-text-secondary">
@@ -162,9 +144,6 @@ export function BBSearchPage() {
                     className="w-full rounded-lg border border-border bg-bg-input pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
                   />
                 </div>
-                {!hasSheetGid && spreadsheetUrl.trim() && (
-                  <p className="text-xs text-status-warning">{t("bbUrlNeedsGid")}</p>
-                )}
               </Field>
 
               <div className="grid grid-cols-2 gap-3">
@@ -207,7 +186,7 @@ export function BBSearchPage() {
                     end_row: rangeEndRow ? Number(rangeEndRow) : undefined,
                   })}
                   disabled={!canCheckRange}
-                  className="flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-3 text-sm font-medium text-text-primary hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+                  className="flex items-center justify-center gap-2 rounded-xl bg-accent px-3 py-3 text-sm font-semibold text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
                 >
                   {checkingBbStatus ? <Loader2 size={14} className="animate-spin" /> : <Rows3 size={14} />}
                   {checkingBbStatus ? t("bbChecking") : t("bbCheckRange")}
@@ -255,15 +234,16 @@ export function BBSearchPage() {
                         <p className="text-[11px] uppercase tracking-wide text-text-muted">{t("rowLabel")} {row.row_index}</p>
                         <p className="mt-1 break-all text-sm text-text-primary">{row.bb_model_id}</p>
                       </div>
-                      <DecisionBadge active={row.need_design}>
+                      <DecisionText active={row.need_design}>
                         {row.need_design ? t("bbDesignNeeded") : t("bbSkipForNow")}
-                      </DecisionBadge>
+                      </DecisionText>
                     </div>
 
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <MatchBadge matched={row.matched_in_bb}>
-                        {row.matched_in_bb ? t("bbCurrentStatus") : t("bbNotMatched")}
-                      </MatchBadge>
+                      <StatusBadge
+                        status={row.matched_in_bb ? "valid" : "invalid"}
+                        label={row.matched_in_bb ? t("bbCurrentStatus") : t("bbNotMatched")}
+                      />
                     </div>
 
                     <p className="mt-3 text-xs leading-5 text-text-secondary">
@@ -296,9 +276,10 @@ export function BBSearchPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="space-y-2">
-                            <MatchBadge matched={row.matched_in_bb}>
-                              {row.matched_in_bb ? t("bbCurrentStatus") : t("bbNotMatched")}
-                            </MatchBadge>
+                            <StatusBadge
+                              status={row.matched_in_bb ? "valid" : "invalid"}
+                              label={row.matched_in_bb ? t("bbCurrentStatus") : t("bbNotMatched")}
+                            />
                             <p className="max-w-[320px] text-xs leading-5 text-text-secondary">
                               {row.error
                                 ? row.error
@@ -309,9 +290,9 @@ export function BBSearchPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <DecisionBadge active={row.need_design}>
+                          <DecisionText active={row.need_design}>
                             {row.need_design ? t("bbDesignNeeded") : t("bbSkipForNow")}
-                          </DecisionBadge>
+                          </DecisionText>
                         </td>
                       </tr>
                     ))}
