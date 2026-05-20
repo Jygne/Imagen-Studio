@@ -172,46 +172,14 @@ export function SettingsPage() {
           </Field>
         </SectionCard>
 
-        {/* BB Status Check */}
+        {/* BB Item Search */}
         <SectionCard title={t("bbStatusSection")} description={t("bbStatusDesc")}>
           <div className="space-y-4">
-            <Field label={t("bbStatusApiUrl")}>
-              <TextInput
-                value={form.bb_status_api_url}
-                onChange={set("bb_status_api_url")}
-                placeholder="https://bb-operation.shopee.io/api/bb-operation/openapi/v1/bb-model/search"
-              />
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label={t("bbClientName")}>
-                <TextInput
-                  value={form.bb_client_name}
-                  onChange={set("bb_client_name")}
-                  placeholder="AIGC"
-                />
-              </Field>
-              <Field label={t("bbRegion")}>
-                <TextInput
-                  value={form.bb_region}
-                  onChange={set("bb_region")}
-                  placeholder="PH"
-                />
-              </Field>
-            </div>
             <Field label={t("bbToken")}>
               <TextInput
                 value={form.bb_token}
                 onChange={set("bb_token")}
                 placeholder={t("bbTokenPlaceholder")}
-              />
-            </Field>
-            <Field label={t("bbHiddenNoImageStatus")}>
-              <input
-                type="number"
-                min={1}
-                value={form.bb_hidden_no_image_status}
-                onChange={(e) => set("bb_hidden_no_image_status")(Number(e.target.value))}
-                className="w-full bg-bg-input border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent transition-colors"
               />
             </Field>
           </div>

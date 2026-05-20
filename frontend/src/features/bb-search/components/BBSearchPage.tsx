@@ -110,7 +110,7 @@ export function BBSearchPage() {
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]">
+      <div className="grid gap-4 xl:grid-cols-[440px_minmax(0,1fr)]">
         <div className="space-y-4">
           <div className="rounded-xl border border-border bg-bg-surface p-5">
             <div className="mb-4">
@@ -173,7 +173,7 @@ export function BBSearchPage() {
                 <button
                   onClick={() => checkBbStatus({ spreadsheet_url: spreadsheetUrl, tab_name: "" })}
                   disabled={!canCheckAll}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-accent px-3 py-3 text-sm font-semibold text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+                  className="flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-accent px-3 py-3 text-sm font-semibold text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
                 >
                   {checkingBbStatus ? <Loader2 size={14} className="animate-spin" /> : <ScanSearch size={14} />}
                   {checkingBbStatus ? t("bbChecking") : t("bbCheckAll")}
@@ -186,7 +186,7 @@ export function BBSearchPage() {
                     end_row: rangeEndRow ? Number(rangeEndRow) : undefined,
                   })}
                   disabled={!canCheckRange}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-accent px-3 py-3 text-sm font-semibold text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+                  className="flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-accent px-3 py-3 text-sm font-semibold text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
                 >
                   {checkingBbStatus ? <Loader2 size={14} className="animate-spin" /> : <Rows3 size={14} />}
                   {checkingBbStatus ? t("bbChecking") : t("bbCheckRange")}
